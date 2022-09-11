@@ -19,7 +19,6 @@ class MaskedCouplingFlow():
         given the weights, biases and the input.'''
 
         for w, b in zip(W, B):
-            print(z)
             z = self.activation(F.linear(z, w.T, b))
         return z
 
@@ -85,16 +84,16 @@ class MaskedCouplingFlow():
                 consumed += torch.numel(w)
         return s_w, s_b, t_w, t_b
 
-    def forward(self, z, W):
+    def backward(self, z, W):
         s_w, s_b, t_w, t_b = self.get_weights_and_biases(W)
         z_k = (self.mask * z)
         zp_D = z * torch.exp(self.net_forward(z_k, s_w, s_b)) + self.net_forward(z_k, t_w, t_b)
         return z_k + (1 - self.mask) * zp_D
 
-    def backward(self, z, W):
+    def forward(self, z, W):
         s_w, s_b, t_w, t_b = self.get_weights_and_biases(W)
         zp_k = (self.mask * z)
-        z_D = (((1 - self.mask) * z) - self.net_forward(zp_k, t_w, t_b)) / (self.net_forward(zp_k, s_w, s_b) + 1e-7)
+        z_D = (((1 - self.mask) * z) - self.net_forward(zp_k, t_w, t_b)) / (self.net_forward(zp_k, s_w, s_b) + 1e-8)
         return zp_k + z_D
 
     def log_abs_det_jacobian(self, z, W):
@@ -105,7 +104,7 @@ class MaskedCouplingFlow():
 
 class TripartiteModel(nn.Module):
 
-    def __init__(self, dim:int =32, n_couplings:int =4, buffer:float =3.):
+    def __init__(self, dim:int =32, n_couplings:int =4, buffer:float =3., n_hidden=32):
         '''
         Args:
             dim: Dimensionality of e-space
@@ -118,7 +117,7 @@ class TripartiteModel(nn.Module):
         mask = torch.ones(dim)
         mask[::2] = 0
         for i in range(n_couplings):
-            self.couplings.append(MaskedCouplingFlow(dim, mask))
+            self.couplings.append(MaskedCouplingFlow(dim, mask, n_hidden=n_hidden))
             mask = 1-mask
 
         self.buffer = buffer
@@ -127,36 +126,34 @@ class TripartiteModel(nn.Module):
     def feature_size(self):
         return sum(x.feature_size for x in self.couplings)
 
+    def split_weights(self, W):
+        if W.shape !=(self.feature_size,):
+            raise ValueError(f'Weight vector W should have size{self.feature_size} not {W.shape}')
+        return torch.split(W, self.feature_size // len(self.couplings), dim=-1)
+
     def log_abs_det_jacobian(self, z, W):
-        return sum(x.log_abs_det_jacobian(z, W) for x in self.couplings)
+        return sum(x.log_abs_det_jacobian(z, w) for x, w in zip(self.couplings, self.split_weights(W)))
 
     def transform(self, x: Tensor, W: Tensor):
         '''
         Takes x in E-space coordinates and converts them to the predicate 
         described by the weighting tensor W
         '''
-        if W.shape !=(self.feature_size,):
-            raise ValueError(f'Weight vector W should have size{self.feature_size} not {W.shape}')
 
-        split_weights = torch.split(W, self.feature_size // len(self.couplings), dim=-1)
         predicate_position = x
-        for coupling, weight in zip(self.couplings, split_weights):
+        for coupling, weight in zip(self.couplings, self.split_weights(W)):
             predicate_position = coupling.forward(predicate_position, weight)
         return predicate_position
 
     def inverse_transform(self, x: Tensor, W: Tensor):
-        if W.shape !=(self.feature_size,):
-            raise ValueError(f'Weight vector W should have size{self.feature_size} not {W.shape}')
-
-        split_weights = torch.split(W, self.feature_size // len(self.couplings), dim=-1)
         e_position = x
-        for coupling, weight in zip(reversed(self.couplings), reversed(split_weights)):
+        for coupling, weight in zip(reversed(self.couplings), reversed(self.split_weights(W))):
             e_position = coupling.backward(e_position, weight)
         return e_position
 
     def sample(self, W: Tensor, n: int = 128):
         samples = self.distribution.sample((n, ))
-        return self.inverse_transform(samples, W)
+        return self.inverse_transform(samples, W), self.log_abs_det_jacobian(samples, W)
 
     def forward(self, x: Tensor, W: Tensor, positive_predication: bool = True):
         ''' 
@@ -176,6 +173,3 @@ class TripartiteModel(nn.Module):
             return -torch.log_sigmoid(self.buffer-x_in_W)
         return -torch.log_sigmoid(self.buffer+x_in_W)
 
-model = TripartiteModel(dim=2)
-W = torch.normal(torch.zeros(model.feature_size))
-print(model.sample(W, 5))
