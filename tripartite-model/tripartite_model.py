@@ -183,7 +183,7 @@ class TripartiteModel(nn.Module):
 
     def inverse_transform(self, x: Tensor, W: Tensor):
         e_position = x
-        log_abs_det_jacobian = torch.zeros(x.shape[0])
+        log_abs_det_jacobian = torch.zeros(x.shape[0], device=x.device)
 
         for coupling, weight in zip(reversed(self.couplings), reversed(self.split_weights(W))):
             e_position, ladj = coupling.forward(e_position, weight)
@@ -194,7 +194,7 @@ class TripartiteModel(nn.Module):
         return e_position, log_abs_det_jacobian
 
     def sample(self, W: Tensor, n: int = 128, with_ladj=False, with_log_probs=False):
-        samples = self.distribution.sample(n)
+        samples = self.distribution.sample(n).to(W.device)
         log_probs = self.distribution.log_prob(samples)
         e_position, log_abs_det_jacobian = self.inverse_transform(samples, W)
         if with_ladj and with_log_probs:

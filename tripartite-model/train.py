@@ -5,8 +5,15 @@ from tripartite_model import TripartiteModel
 import matplotlib.pyplot as plt
 import math 
 
-model = TripartiteModel(dim=2, n_hidden=32, n_couplings=16, clip=1.0, radius=5.0)
-W = torch.normal(torch.zeros(model.feature_size)) * 0.05
+
+model = TripartiteModel(dim=2, n_hidden=16, n_couplings=64, clip=1.0, radius=5.0)
+
+if torch.cuda.is_available():
+    device = 'cuda:0'
+else:
+    device = 'cpu'
+
+W = torch.normal(torch.zeros(model.feature_size, device=device)) * 0.05
 W.requires_grad=True
 
 
@@ -28,7 +35,7 @@ torch.autograd.set_detect_anomaly(True)
 for i in range(3_000):
     optimizer.zero_grad() 
     x, det_jac, log_probs = model.sample(W, 128, with_ladj=True, with_log_probs=True)
-    loss = torch.abs((log_probs+det_jac) - torch.log(density_wave(x) + 1e-9)).mean()
+    loss = torch.abs(log_probs+det_jac - torch.log(density_wave(x) + 1e-9)).mean()
     loss.backward()
     optimizer.step()
     if i % 100 == 0:
