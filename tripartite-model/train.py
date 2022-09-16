@@ -46,7 +46,7 @@ optimizer = optim.Adam([W], lr=args.lr)
 for i in range(3_000):
     optimizer.zero_grad() 
     x, det_jac, log_probs = model.sample(W, args.batch_size, with_ladj=True, with_log_probs=True)
-    loss = torch.abs(log_probs+det_jac - torch.log(density_wave(x) + 1e-9)).mean()
+    loss = torch.abs(log_probs + det_jac - torch.log(density_wave(x) + 1e-9)).mean()
     loss.backward()
     optimizer.step()
     if i % 100 == 0:

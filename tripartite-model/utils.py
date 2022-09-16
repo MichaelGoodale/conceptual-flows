@@ -46,7 +46,7 @@ class ConceptDistribution():
         u = torch.normal(mean=torch.zeros(n, self.dim))
         u = F.normalize(u)
         if negative_example:
-            r = torch.rand(n,1) ** (1/self.neg_k) #Inverse CDF
+            r = (torch.rand(n,1)*0.8) ** (1/self.neg_k) #Inverse CDF
         else:
-            r = torch.rand(n,1) ** self.k #Inverse CDF (which incidentally is the inverse of the previous)
+            r = (torch.rand(n,1)*0.8) ** self.k #Inverse CDF (which incidentally is the inverse of the previous)
         return self.radius*r*u

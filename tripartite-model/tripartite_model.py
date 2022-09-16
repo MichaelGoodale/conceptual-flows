@@ -11,20 +11,21 @@ from utils import ConceptDistribution
 class BallHomeomorphism():
     ''' Takes points in Rn and transforms them to the unit ball, or vice versa'''
 
-    def __init__(self, dim, radius=1.):
+    def __init__(self, dim, radius=1., eps=1e-9):
         self.dim = dim
         self.radius = radius
+        self.eps = eps
 
     def to_ball(self, x):
         norm = torch.linalg.vector_norm(x, dim=-1, keepdim=True)
         ladj = (self.radius ** self.dim) / ((norm+1) ** (self.dim+1))
-        ladj = torch.log(torch.abs(ladj)).squeeze(dim=-1)
+        ladj = torch.log(torch.abs(ladj)+self.eps).squeeze(dim=-1)
         return self.radius*x / (1 + norm), ladj
 
     def from_ball(self, x):
         norm = torch.linalg.vector_norm(x, dim=-1, keepdim=True)
         ladj = self.radius / ((self.radius - norm) ** (self.dim+1))
-        ladj = torch.log(torch.abs(ladj)).squeeze(dim=-1)
+        ladj = torch.log(torch.abs(ladj) + self.eps).squeeze(dim=-1)
         return x / (self.radius - norm), ladj
 
 class MaskedCouplingFlow(nn.Module):
@@ -170,26 +171,27 @@ class TripartiteModel(nn.Module):
         Takes x in E-space coordinates and converts them to the predicate 
         described by the weighting tensor W
         '''
-        predicate_position, log_abs_det_jacobian = self.homeomorphism.from_ball(x)
+        predicate_position = x 
+        log_abs_det_jacobian = torch.zeros(x.shape[0], device=x.device)
 
         for coupling, weight in zip(self.couplings, self.split_weights(W)):
             predicate_position, ladj = coupling.backward(predicate_position, weight)
             log_abs_det_jacobian += ladj
+
+        predicate_position, ladj = self.homeomorphism.to_ball(predicate_position)
+        log_abs_det_jacobian += ladj
 
         if with_ladj: 
             return predicate_position, log_abs_det_jacobian
         return predicate_position
 
     def inverse_transform(self, x: Tensor, W: Tensor):
-        e_position = x
-        log_abs_det_jacobian = torch.zeros(x.shape[0], device=x.device)
+        e_position, log_abs_det_jacobian = self.homeomorphism.from_ball(x)
 
         for coupling, weight in zip(reversed(self.couplings), reversed(self.split_weights(W))):
             e_position, ladj = coupling.forward(e_position, weight)
             log_abs_det_jacobian += ladj
 
-        e_position, ladj = self.homeomorphism.to_ball(e_position)
-        log_abs_det_jacobian += ladj
         return e_position, log_abs_det_jacobian
 
     def sample(self, W: Tensor, n: int = 128, with_ladj=False, with_log_probs=False):
