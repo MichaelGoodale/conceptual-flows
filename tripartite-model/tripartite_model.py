@@ -6,136 +6,7 @@ import torch.nn.functional as F
 from torch.distributions import transforms 
 from torch.distributions.multivariate_normal import MultivariateNormal
 
-from utils import ConceptDistribution
-
-class BallHomeomorphism():
-    ''' Takes points in Rn and transforms them to the unit ball, or vice versa'''
-
-    def __init__(self, dim, radius=1., eps=1e-9):
-        self.dim = dim
-        self.radius = radius
-        self.eps = eps
-
-    def to_ball(self, x):
-        norm = torch.linalg.vector_norm(x, dim=-1, keepdim=True)
-        ladj = (self.radius ** self.dim) / ((norm+1) ** (self.dim+1))
-        ladj = torch.log(torch.abs(ladj)+self.eps).squeeze(dim=-1)
-        return self.radius*x / (1 + norm), ladj
-
-    def from_ball(self, x):
-        norm = torch.linalg.vector_norm(x, dim=-1, keepdim=True)
-        ladj = self.radius / ((self.radius - norm) ** (self.dim+1))
-        ladj = torch.log(torch.abs(ladj) + self.eps).squeeze(dim=-1)
-        return x / (self.radius - norm), ladj
-
-class MaskedCouplingFlow(nn.Module):
-    def __init__(self, dim, mask=None, n_hidden=64, n_layers=2, activation=F.selu, clip=1.0, eps=1e-9):
-        super().__init__()
-        self.dim = dim
-        self.n_hidden = n_hidden
-        self.n_layers = n_layers
-        self.activation = activation
-        self.register_buffer('mask', mask)
-        self.clip = clip
-        self.eps = eps
-
-    def net_forward(self, z: Tensor, W: List[Tensor], B: List[Tensor]) -> Tensor:
-        ''' Run through a neural network of self.n_layer dimensions 
-        given the weights, biases and the input.'''
-
-        for w, b in zip(W, B):
-            z = self.activation(F.linear(z, w.T, b))
-        return z
-
-    @property
-    def feature_size(self) -> int:
-        '''Determine how big a feature vector should be to represent this coupling'''
-
-        weight_size = (self.dim * 2 + (self.n_layers - 2) * self.n_hidden) * self.n_hidden
-        bias_size = self.dim + (self.n_layers - 1) * self.n_hidden
-        return 2*(weight_size + bias_size)
-
-    def get_weights_and_biases(self, W: Tensor) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
-        '''Transform a vector representing the terms to the weights and biases of s and t
-        Pretty ugly code but it gets the job done. 
-        '''
-
-        if W.shape !=(self.feature_size,):
-            raise ValueError(f'Weight vector W should have size{self.feature_size} not {W.shape}')
-        s_w, s_b, t_w, t_b = [], [], [], []
-        consumed = 0 
-        for i in range(self.n_layers):
-            if i == 0:
-                w = W[consumed:consumed+(self.dim*self.n_hidden)].reshape(self.dim, self.n_hidden)
-                s_w.append(w)
-                consumed += torch.numel(w)
-                w = W[consumed:consumed+(self.dim*self.n_hidden)].reshape(self.dim, self.n_hidden)
-                t_w.append(w)
-                consumed += torch.numel(w)
-
-                w = W[consumed:consumed+self.n_hidden]
-                s_b.append(w)
-                consumed += torch.numel(w)
-                w = W[consumed:consumed+self.n_hidden]
-                t_b.append(w)
-                consumed += torch.numel(w)
-            elif i == self.n_layers - 1:
-                w = W[consumed:consumed+(self.n_hidden*self.dim)].reshape(self.n_hidden, self.dim)
-                s_w.append(w)
-                consumed += torch.numel(w)
-                w = W[consumed:consumed+(self.n_hidden*self.dim)].reshape(self.n_hidden, self.dim)
-                t_w.append(w)
-                consumed += torch.numel(w)
-
-                w = W[consumed:consumed+self.dim]
-                s_b.append(w)
-                consumed += torch.numel(w)
-                w = W[consumed:consumed+self.dim]
-                t_b.append(w)
-                consumed += torch.numel(w)
-            else:
-                w = W[consumed:consumed+(self.n_hidden*self.n_hidden)].reshape(self.n_hidden, self.n_hidden)
-                s_w.append(w)
-                consumed += torch.numel(w)
-                w = W[consumed:consumed+(self.n_hidden*self.n_hidden)].reshape(self.n_hidden, self.n_hidden)
-                t_w.append(w)
-                consumed += torch.numel(w)
-
-                w = W[consumed:consumed+self.n_hidden]
-                s_b.append(w)
-                consumed += torch.numel(w)
-                w = W[consumed:consumed+self.n_hidden]
-                t_b.append(w)
-                consumed += torch.numel(w)
-        return s_w, s_b, t_w, t_b
-    
-    def get_s(self, masked_x, s_w, s_b):
-        s = self.net_forward(masked_x, s_w, s_b)
-        return self.clip * torch.tanh(s / self.clip)
-
-    def forward(self, x, W):
-        s_w, s_b, t_w, t_b = self.get_weights_and_biases(W)
-        masked_x = self.mask * x
-        s = self.get_s(masked_x, s_w, s_b)
-        t = self.net_forward(masked_x, t_w, t_b)
-
-        y = masked_x + (1-self.mask) * (x * (torch.exp(s)+self.eps) + t) 
-        log_abs_det_jacobian = torch.sum((1-self.mask)*torch.abs(s), dim=-1)
-
-        return y, log_abs_det_jacobian
-
-    def backward(self, x, W):
-        s_w, s_b, t_w, t_b = self.get_weights_and_biases(W)
-        masked_x = self.mask * x
-        s = self.get_s(masked_x, s_w, s_b)
-        t = self.net_forward(masked_x, t_w, t_b)
-
-        log_abs_det_jacobian = -torch.sum((1-self.mask)*torch.abs(s), dim=-1)
-        x = masked_x + (1-self.mask) * (x - t) * (torch.exp(-s) + self.eps)
-
-        return x, log_abs_det_jacobian
-
-
+from utils import ConceptDistribution, BallHomeomorphism, MaskedCouplingFlow
 
 class TripartiteModel(nn.Module):
 
@@ -194,33 +65,26 @@ class TripartiteModel(nn.Module):
 
         return e_position, log_abs_det_jacobian
 
-    def sample(self, W: Tensor, n: int = 128, with_ladj=False, with_log_probs=False):
-        samples = self.distribution.sample(n).to(W.device)
-        log_probs = self.distribution.log_prob(samples)
+    def sample(self, W: Tensor, n: int = 128, with_ladj=False, negative_example = False):
+        samples = self.distribution.sample(n, negative_example=negative_example).to(W.device)
         e_position, log_abs_det_jacobian = self.inverse_transform(samples, W)
-        if with_ladj and with_log_probs:
-            return e_position, log_abs_det_jacobian, log_probs
-        elif with_ladj:
+        if with_ladj:
             return e_position, log_abs_det_jacobian
-        elif with_log_probs:
-            return e_position, log_probs
         return e_position
 
-    def forward(self, x: Tensor, W: Tensor, positive_predication: bool = True):
+    def forward(self, x: Tensor, W: Tensor, negative_example: bool = False):
         ''' 
         Determines whether point x (in E-space) is a member of the predicated defined by weight W
 
         Args:
             x: Tensor, Input values in E-space coordinates
             W: Tensor, Weighting tensor describing weights of coupling layers
-            positive_predication: bool, whether this is positive or negative sampling
+            negative_example: bool, whether this is positive or negative sampling
 
         Returns:
             probs: Returns the negative log probability that x is a member of predicate W or, if positive_probs=False,
             the negative log probability that it is not.
         '''
-        x_in_W = self.transform(x, W)
-        if positive_predication:
-            return torch.log_cdf(x_in_W)
-        return torch.log_cdf(x_in_W)
+        x_in_W, log_abs_det_jacobian = self.transform(x, W, with_ladj=True)
+        return self.distribution.log_cdf(x_in_W, negative_example=negative_example)
 

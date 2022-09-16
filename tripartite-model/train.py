@@ -43,15 +43,19 @@ def density_wave(z):
 
 optimizer = optim.Adam([W], lr=args.lr)
 
-for i in range(3_000):
+for i in range(3000):
     optimizer.zero_grad() 
-    x, det_jac, log_probs = model.sample(W, args.batch_size, with_ladj=True, with_log_probs=True)
-    loss = torch.abs(log_probs + det_jac - torch.log(density_wave(x) + 1e-9)).mean()
+    x, det_jac = model.sample(W, args.batch_size, with_ladj=True)
+    loss = (det_jac - torch.log(density_wave(x) + 1e-9)).mean()
     loss.backward()
     optimizer.step()
     if i % 100 == 0:
         print(f"Step {i}, loss={loss.item()}")
 
-samples = model.sample(W)
-plt.scatter(*samples.T.detach())
+samples = model.sample(W, n=2000)
+neg_samples = model.sample(W, n=2000, negative_example=True)
+
+plt.scatter(*neg_samples.T.cpu().detach(), label='Negative examples')
+plt.scatter(*samples.T.cpu().detach(), label='Positive examples')
+plt.legend()
 plt.show()
