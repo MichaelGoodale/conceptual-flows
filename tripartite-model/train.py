@@ -9,6 +9,7 @@ import math
 model = TripartiteModel(dim=2, n_hidden=16, n_couplings=64, clip=1.0, radius=5.0)
 
 if torch.cuda.is_available():
+    print("USING CUDA")
     device = 'cuda:0'
 else:
     device = 'cpu'
