@@ -27,13 +27,14 @@ class BallHomeomorphism():
         ladj = torch.log(torch.abs(ladj)).squeeze(dim=-1)
         return x / (self.radius - norm), ladj
 
-class MaskedCouplingFlow():
+class MaskedCouplingFlow(nn.Module):
     def __init__(self, dim, mask=None, n_hidden=64, n_layers=2, activation=F.selu, clip=1.0, eps=1e-9):
+        super().__init__()
         self.dim = dim
         self.n_hidden = n_hidden
         self.n_layers = n_layers
         self.activation = activation
-        self.mask = mask.detach()
+        self.register_buffer('mask', mask)
         self.clip = clip
         self.eps = eps
 
@@ -137,7 +138,7 @@ class MaskedCouplingFlow():
 
 class TripartiteModel(nn.Module):
 
-    def __init__(self, dim:int =32, n_couplings:int =4, buffer:float =3., n_hidden=32, clip=1.0, radius=2.0):
+    def __init__(self, dim:int =32, n_couplings:int =4, n_hidden=32, clip=1.0, radius=2.0):
         '''
         Args:
             dim: Dimensionality of e-space
@@ -148,14 +149,12 @@ class TripartiteModel(nn.Module):
         self.distribution = ConceptDistribution(dim, radius=radius)
         self.homeomorphism = BallHomeomorphism(dim, radius=radius)
         self.radius = radius
-        self.couplings = []
+        self.couplings = nn.ModuleList()
         mask = torch.ones(dim)
         mask[::2] = 0
         for i in range(n_couplings):
             self.couplings.append(MaskedCouplingFlow(dim, mask, n_hidden=n_hidden, clip=clip))
             mask = 1-mask
-
-        self.buffer = buffer
 
     @property
     def feature_size(self):

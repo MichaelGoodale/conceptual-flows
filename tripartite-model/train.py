@@ -13,6 +13,8 @@ if torch.cuda.is_available():
 else:
     device = 'cpu'
 
+model.to(device)
+
 W = torch.normal(torch.zeros(model.feature_size, device=device)) * 0.05
 W.requires_grad=True
 
