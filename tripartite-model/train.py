@@ -5,8 +5,18 @@ from tripartite_model import TripartiteModel
 import matplotlib.pyplot as plt
 import math 
 
+import argparse
 
-model = TripartiteModel(dim=2, n_hidden=16, n_couplings=64, clip=1.0, radius=5.0)
+parser = argparse.ArgumentParser() 
+parser.add_argument('--n_hidden', type=int, default=16)
+parser.add_argument('--n_couplings', type=int, default=64)
+parser.add_argument('--radius', type=float, default = 2.0)
+parser.add_argument('--lr', type=float, default = 1e-3)
+parser.add_argument('--batch_size', type=int, default = 128)
+
+args = parser.parse_args()
+
+model = TripartiteModel(dim=2, n_hidden=args.n_hidden, n_couplings=args.n_couplings, clip=1.0, radius=args.radius)
 
 if torch.cuda.is_available():
     print("USING CUDA")
@@ -31,13 +41,11 @@ def density_wave(z):
     u[torch.abs(z1) > 4] = 1e8
     return torch.exp(-u)
 
-optimizer = optim.Adam([W], lr=1e-3)
-
-torch.autograd.set_detect_anomaly(True)
+optimizer = optim.Adam([W], lr=args.lr)
 
 for i in range(3_000):
     optimizer.zero_grad() 
-    x, det_jac, log_probs = model.sample(W, 128, with_ladj=True, with_log_probs=True)
+    x, det_jac, log_probs = model.sample(W, args.batch_size, with_ladj=True, with_log_probs=True)
     loss = torch.abs(log_probs+det_jac - torch.log(density_wave(x) + 1e-9)).mean()
     loss.backward()
     optimizer.step()
