@@ -6,13 +6,36 @@ import torch.nn.functional as F
 from torch.distributions import transforms 
 from torch.distributions.multivariate_normal import MultivariateNormal
 
+from utils import ConceptDistribution
+
+class BallHomeomorphism():
+    ''' Takes points in Rn and transforms them to the unit ball, or vice versa'''
+
+    def __init__(self, dim, radius=1.):
+        self.dim = dim
+        self.radius = radius
+
+    def to_ball(self, x):
+        norm = torch.linalg.vector_norm(x, dim=-1, keepdim=True)
+        ladj = (self.radius ** self.dim) / ((norm+1) ** (self.dim+1))
+        ladj = torch.log(torch.abs(ladj)).squeeze(dim=-1)
+        return self.radius*x / (1 + norm), ladj
+
+    def from_ball(self, x):
+        norm = torch.linalg.vector_norm(x, dim=-1, keepdim=True)
+        ladj = self.radius / ((self.radius - norm) ** (self.dim+1))
+        ladj = torch.log(torch.abs(ladj)).squeeze(dim=-1)
+        return x / (self.radius - norm), ladj
+
 class MaskedCouplingFlow():
-    def __init__(self, dim, mask=None, n_hidden=64, n_layers=2, activation=F.relu):
+    def __init__(self, dim, mask=None, n_hidden=64, n_layers=2, activation=F.selu, clip=1.0, eps=1e-9):
         self.dim = dim
         self.n_hidden = n_hidden
         self.n_layers = n_layers
         self.activation = activation
         self.mask = mask.detach()
+        self.clip = clip
+        self.eps = eps
 
     def net_forward(self, z: Tensor, W: List[Tensor], B: List[Tensor]) -> Tensor:
         ''' Run through a neural network of self.n_layer dimensions 
@@ -83,28 +106,38 @@ class MaskedCouplingFlow():
                 t_b.append(w)
                 consumed += torch.numel(w)
         return s_w, s_b, t_w, t_b
+    
+    def get_s(self, masked_x, s_w, s_b):
+        s = self.net_forward(masked_x, s_w, s_b)
+        return self.clip * torch.tanh(s / self.clip)
 
-    def backward(self, z, W):
+    def forward(self, x, W):
         s_w, s_b, t_w, t_b = self.get_weights_and_biases(W)
-        z_k = (self.mask * z)
-        zp_D = z * torch.exp(self.net_forward(z_k, s_w, s_b)) + self.net_forward(z_k, t_w, t_b)
-        return z_k + (1 - self.mask) * zp_D
+        masked_x = self.mask * x
+        s = self.get_s(masked_x, s_w, s_b)
+        t = self.net_forward(masked_x, t_w, t_b)
 
-    def forward(self, z, W):
-        s_w, s_b, t_w, t_b = self.get_weights_and_biases(W)
-        zp_k = (self.mask * z)
-        z_D = (((1 - self.mask) * z) - self.net_forward(zp_k, t_w, t_b)) / (self.net_forward(zp_k, s_w, s_b) + 1e-8)
-        return zp_k + z_D
+        y = masked_x + (1-self.mask) * (x * (torch.exp(s)+self.eps) + t) 
+        log_abs_det_jacobian = torch.sum((1-self.mask)*torch.abs(s), dim=-1)
 
-    def log_abs_det_jacobian(self, z, W):
+        return y, log_abs_det_jacobian
+
+    def backward(self, x, W):
         s_w, s_b, t_w, t_b = self.get_weights_and_biases(W)
-        return -torch.sum(torch.abs(self.net_forward(z * self.mask, s_w, s_b)))
+        masked_x = self.mask * x
+        s = self.get_s(masked_x, s_w, s_b)
+        t = self.net_forward(masked_x, t_w, t_b)
+
+        log_abs_det_jacobian = -torch.sum((1-self.mask)*torch.abs(s), dim=-1)
+        x = masked_x + (1-self.mask) * (x - t) * (torch.exp(-s) + self.eps)
+
+        return x, log_abs_det_jacobian
 
 
 
 class TripartiteModel(nn.Module):
 
-    def __init__(self, dim:int =32, n_couplings:int =4, buffer:float =3., n_hidden=32):
+    def __init__(self, dim:int =32, n_couplings:int =4, buffer:float =3., n_hidden=32, clip=1.0, radius=2.0):
         '''
         Args:
             dim: Dimensionality of e-space
@@ -112,12 +145,14 @@ class TripartiteModel(nn.Module):
             buffer: Buffer for sigmoid function (where sigmoid(x)=0.5)
         '''
         super().__init__()
-        self.distribution = MultivariateNormal(torch.zeros(dim), torch.eye(dim, dim))
+        self.distribution = ConceptDistribution(dim, radius=radius)
+        self.homeomorphism = BallHomeomorphism(dim, radius=radius)
+        self.radius = radius
         self.couplings = []
         mask = torch.ones(dim)
         mask[::2] = 0
         for i in range(n_couplings):
-            self.couplings.append(MaskedCouplingFlow(dim, mask, n_hidden=n_hidden))
+            self.couplings.append(MaskedCouplingFlow(dim, mask, n_hidden=n_hidden, clip=clip))
             mask = 1-mask
 
         self.buffer = buffer
@@ -131,29 +166,44 @@ class TripartiteModel(nn.Module):
             raise ValueError(f'Weight vector W should have size{self.feature_size} not {W.shape}')
         return torch.split(W, self.feature_size // len(self.couplings), dim=-1)
 
-    def log_abs_det_jacobian(self, z, W):
-        return sum(x.log_abs_det_jacobian(z, w) for x, w in zip(self.couplings, self.split_weights(W)))
-
-    def transform(self, x: Tensor, W: Tensor):
+    def transform(self, x: Tensor, W: Tensor, with_ladj=False):
         '''
         Takes x in E-space coordinates and converts them to the predicate 
         described by the weighting tensor W
         '''
+        predicate_position, log_abs_det_jacobian = self.homeomorphism.from_ball(x)
 
-        predicate_position = x
         for coupling, weight in zip(self.couplings, self.split_weights(W)):
-            predicate_position = coupling.forward(predicate_position, weight)
+            predicate_position, ladj = coupling.backward(predicate_position, weight)
+            log_abs_det_jacobian += ladj
+
+        if with_ladj: 
+            return predicate_position, log_abs_det_jacobian
         return predicate_position
 
     def inverse_transform(self, x: Tensor, W: Tensor):
         e_position = x
-        for coupling, weight in zip(reversed(self.couplings), reversed(self.split_weights(W))):
-            e_position = coupling.backward(e_position, weight)
-        return e_position
+        log_abs_det_jacobian = torch.zeros(x.shape[0])
 
-    def sample(self, W: Tensor, n: int = 128):
-        samples = self.distribution.sample((n, ))
-        return self.inverse_transform(samples, W), self.log_abs_det_jacobian(samples, W)
+        for coupling, weight in zip(reversed(self.couplings), reversed(self.split_weights(W))):
+            e_position, ladj = coupling.forward(e_position, weight)
+            log_abs_det_jacobian += ladj
+
+        e_position, ladj = self.homeomorphism.to_ball(e_position)
+        log_abs_det_jacobian += ladj
+        return e_position, log_abs_det_jacobian
+
+    def sample(self, W: Tensor, n: int = 128, with_ladj=False, with_log_probs=False):
+        samples = self.distribution.sample(n)
+        log_probs = self.distribution.log_prob(samples)
+        e_position, log_abs_det_jacobian = self.inverse_transform(samples, W)
+        if with_ladj and with_log_probs:
+            return e_position, log_abs_det_jacobian, log_probs
+        elif with_ladj:
+            return e_position, log_abs_det_jacobian
+        elif with_log_probs:
+            return e_position, log_probs
+        return e_position
 
     def forward(self, x: Tensor, W: Tensor, positive_predication: bool = True):
         ''' 
@@ -170,6 +220,6 @@ class TripartiteModel(nn.Module):
         '''
         x_in_W = self.transform(x, W)
         if positive_predication:
-            return -torch.log_sigmoid(self.buffer-x_in_W)
-        return -torch.log_sigmoid(self.buffer+x_in_W)
+            return torch.log_cdf(x_in_W)
+        return torch.log_cdf(x_in_W)
 
