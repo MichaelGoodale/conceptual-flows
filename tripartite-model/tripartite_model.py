@@ -10,6 +10,10 @@ from utils import ConceptDistribution, BallHomeomorphism, MaskedCouplingFlow
 
 class TripartiteModel(nn.Module):
 
+
+    # For all functions with W; to have all from a single W, just make sure the shape is (1, feature_size)
+    # and broadcasting should take care of it. 
+
     def __init__(self, dim:int =32, n_couplings:int =4, n_hidden=32, clip=1.0, radius=2.0):
         '''
         Args:
@@ -33,11 +37,11 @@ class TripartiteModel(nn.Module):
         return sum(x.feature_size for x in self.couplings)
 
     def split_weights(self, W):
-        if W.shape !=(self.feature_size,):
+        if W.shape[-1] != self.feature_size:
             raise ValueError(f'Weight vector W should have size{self.feature_size} not {W.shape}')
         return torch.split(W, self.feature_size // len(self.couplings), dim=-1)
 
-    def transform(self, x: Tensor, W: Tensor, with_ladj=False):
+    def transform(self, x: Tensor, W: Tensor, with_ladj=False, with_log_probs=False):
         '''
         Takes x in E-space coordinates and converts them to the predicate 
         described by the weighting tensor W
@@ -52,8 +56,15 @@ class TripartiteModel(nn.Module):
         predicate_position, ladj = self.homeomorphism.to_ball(predicate_position)
         log_abs_det_jacobian += ladj
 
-        if with_ladj: 
+
+        if with_ladj and with_log_probs: 
+            log_probs = self.distribution.log_prob(predicate_position)
+            return predicate_position, log_abs_det_jacobian, log_probs
+        if with_ladj:
             return predicate_position, log_abs_det_jacobian
+        if with_log_probs:
+            log_probs = self.distribution.log_prob(predicate_position)
+            return predicate_position, log_probs
         return predicate_position
 
     def inverse_transform(self, x: Tensor, W: Tensor):

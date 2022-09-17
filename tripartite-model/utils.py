@@ -44,10 +44,10 @@ class MaskedCouplingFlow(nn.Module):
     def net_forward(self, z: Tensor, W: List[Tensor], B: List[Tensor]) -> Tensor:
         ''' Run through a neural network of self.n_layer dimensions 
         given the weights, biases and the input.'''
-
+        z = z.unsqueeze(1)
         for w, b in zip(W, B):
-            z = self.activation(F.linear(z, w.T, b))
-        return z
+            z = self.activation(torch.matmul(z, w) + b)
+        return z.squeeze(1)
 
     @property
     def feature_size(self) -> int:
@@ -62,53 +62,58 @@ class MaskedCouplingFlow(nn.Module):
         Pretty ugly code but it gets the job done. 
         '''
 
-        if W.shape !=(self.feature_size,):
+        if W.shape[-1] != self.feature_size:
             raise ValueError(f'Weight vector W should have size{self.feature_size} not {W.shape}')
+
+        if W.dim() == 1:
+            W = W.unsqueeze(0) 
+
+        batch_size = W.shape[0]
         s_w, s_b, t_w, t_b = [], [], [], []
         consumed = 0 
         for i in range(self.n_layers):
             if i == 0:
-                w = W[consumed:consumed+(self.dim*self.n_hidden)].reshape(self.dim, self.n_hidden)
+                w = W[:, consumed:consumed+(self.dim*self.n_hidden)].reshape(batch_size, self.dim, self.n_hidden)
                 s_w.append(w)
-                consumed += torch.numel(w)
-                w = W[consumed:consumed+(self.dim*self.n_hidden)].reshape(self.dim, self.n_hidden)
+                consumed += self.dim * self.n_hidden
+                w = W[:, consumed:consumed+(self.dim*self.n_hidden)].reshape(batch_size, self.dim, self.n_hidden)
                 t_w.append(w)
-                consumed += torch.numel(w)
+                consumed += self.dim * self.n_hidden
 
-                w = W[consumed:consumed+self.n_hidden]
-                s_b.append(w)
-                consumed += torch.numel(w)
-                w = W[consumed:consumed+self.n_hidden]
-                t_b.append(w)
-                consumed += torch.numel(w)
+                w = W[:, consumed:consumed+self.n_hidden]
+                s_b.append(w.unsqueeze(1))
+                consumed += self.n_hidden
+                w = W[:, consumed:consumed+self.n_hidden]
+                t_b.append(w.unsqueeze(1))
+                consumed += self.n_hidden
             elif i == self.n_layers - 1:
-                w = W[consumed:consumed+(self.n_hidden*self.dim)].reshape(self.n_hidden, self.dim)
+                w = W[:, consumed:consumed+(self.n_hidden*self.dim)].reshape(batch_size, self.n_hidden, self.dim)
                 s_w.append(w)
-                consumed += torch.numel(w)
-                w = W[consumed:consumed+(self.n_hidden*self.dim)].reshape(self.n_hidden, self.dim)
+                consumed += self.dim * self.n_hidden
+                w = W[:, consumed:consumed+(self.n_hidden*self.dim)].reshape(batch_size, self.n_hidden, self.dim)
                 t_w.append(w)
-                consumed += torch.numel(w)
+                consumed += self.dim * self.n_hidden
 
-                w = W[consumed:consumed+self.dim]
-                s_b.append(w)
-                consumed += torch.numel(w)
-                w = W[consumed:consumed+self.dim]
-                t_b.append(w)
-                consumed += torch.numel(w)
+                w = W[:, consumed:consumed+self.dim]
+                s_b.append(w.unsqueeze(1))
+                consumed += self.dim
+                w = W[:, consumed:consumed+self.dim]
+                t_b.append(w.unsqueeze(1))
+                consumed += self.dim
             else:
-                w = W[consumed:consumed+(self.n_hidden*self.n_hidden)].reshape(self.n_hidden, self.n_hidden)
+                w = W[:, consumed:consumed+(self.n_hidden*self.n_hidden)].reshape(batch_size, self.n_hidden, self.n_hidden)
                 s_w.append(w)
-                consumed += torch.numel(w)
-                w = W[consumed:consumed+(self.n_hidden*self.n_hidden)].reshape(self.n_hidden, self.n_hidden)
+                consumed += self.n_hidden * self.n_hidden
+                w = W[:, consumed:consumed+(self.n_hidden*self.n_hidden)].reshape(batch_size, self.n_hidden, self.n_hidden)
                 t_w.append(w)
-                consumed += torch.numel(w)
+                consumed += self.n_hidden * self.n_hidden
 
-                w = W[consumed:consumed+self.n_hidden]
-                s_b.append(w)
-                consumed += torch.numel(w)
-                w = W[consumed:consumed+self.n_hidden]
-                t_b.append(w)
-                consumed += torch.numel(w)
+                w = W[:, consumed:consumed+self.n_hidden]
+                s_b.append(w.unsqueeze(1))
+                consumed += self.n_hidden
+                w = W[:, consumed:consumed+self.n_hidden]
+                t_b.append(w.unsqueeze(1))
+                consumed += self.n_hidden
         return s_w, s_b, t_w, t_b
     
     def get_s(self, masked_x, s_w, s_b):
