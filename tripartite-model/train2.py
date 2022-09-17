@@ -72,6 +72,9 @@ optimizer = optim.Adam(params, lr=args.lr)
 
 losses = []
 for i, (img, (pos_target, neg_target)) in enumerate(dataloader):
+    img = img.to(device)
+    neg_target = neg_target.to(device)
+    pos_target = pos_target.to(device)
     optimizer.zero_grad()
     features = vision(img)
     pos_loss = model(features, concepts[pos_target]).mean()
