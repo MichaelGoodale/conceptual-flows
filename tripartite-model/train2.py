@@ -19,10 +19,12 @@ from torchvision import transforms
 parser = argparse.ArgumentParser() 
 parser.add_argument('--n_hidden', type=int, default=32)
 parser.add_argument('--n_couplings', type=int, default=16)
-parser.add_argument('--radius', type=float, default = 2.0)
+parser.add_argument('--radius', type=float, default = 1.0)
 parser.add_argument('--frozen', action='store_true')
 parser.add_argument('--lr', type=float, default = 1e-3)
 parser.add_argument('--batch_size', type=int, default = 128)
+parser.add_argument('--n_epochs', type=int, default = 5)
+parser.add_argument('--neg_sampling', type=int, default = 3)
 
 args = parser.parse_args()
 
@@ -37,7 +39,7 @@ data_transforms =  transforms.Compose([
     ])
 
 N_CLASSES = 10
-NEG_SAMPLING = 3
+NEG_SAMPLING = args.neg_sampling
 
 def target_transform(target: int) -> Tuple[int, np.array]:
     rand_dist = np.arange(N_CLASSES)[np.arange(N_CLASSES) != target]
@@ -48,6 +50,7 @@ dataloader = torch.utils.data.DataLoader(dataset, batch_size=args.batch_size,
                                              shuffle=True, num_workers=2)
 
 if torch.cuda.is_available():
+    print("using CUDA")
     device = 'cuda:0'
 else:
     device = 'cpu'
@@ -65,33 +68,23 @@ vision.to(device)
 concepts = torch.normal(torch.zeros((N_CLASSES, model.feature_size), device=device)) * 0.05
 concepts.requires_grad=True
 
-
 params = [concepts] + [x for x in vision.parameters()]
 optimizer = optim.Adam(params, lr=args.lr)
-
-
 losses = []
-for i, (img, (pos_target, neg_target)) in enumerate(dataloader):
-    img = img.to(device)
-    neg_target = neg_target.to(device)
-    pos_target = pos_target.to(device)
-    optimizer.zero_grad()
-    features = vision(img)
-    pos_loss = model(features, concepts[pos_target]).mean()
-    neg_loss = model(features.repeat_interleave(NEG_SAMPLING, 0), concepts[neg_target.view(-1)], negative_example=True).mean()
-    loss = pos_loss + neg_loss 
-    loss.backward()
-    losses.append(loss)
-    optimizer.step()
-    if i % 100 == 0:
-        print(f"Step {i}, loss={sum([l.item() for l in losses])/len(losses)}")
-        losses = [] 
 
-
-j = model.sample(John, n=2000)
-c = model.sample(Cat, n=2000)
-
-plt.scatter(*c.T.cpu().detach(), label='Cat')
-plt.scatter(*j.T.cpu().detach(), label='John')
-plt.legend()
-plt.show()
+for epoch in range(args.n_epochs):
+    for i, (img, (pos_target, neg_target)) in enumerate(dataloader):
+        img = img.to(device)
+        neg_target = neg_target.to(device)
+        pos_target = pos_target.to(device)
+        optimizer.zero_grad()
+        features = vision(img)
+        pos_loss = model(features, concepts[pos_target]).mean()
+        neg_loss = model(features.repeat_interleave(NEG_SAMPLING, 0), concepts[neg_target.view(-1)], negative_example=True).mean()
+        loss = pos_loss + neg_loss 
+        loss.backward()
+        losses.append(loss)
+        optimizer.step()
+        if i % 100 == 0:
+            print(f"Epoch {epoch+1}/{args.n_epochs}, step {i}, loss={sum([l.item() for l in losses])/len(losses)}")
+            losses = [] 
