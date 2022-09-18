@@ -29,6 +29,7 @@ parser.add_argument('--batch_size', type=int, default = 128)
 parser.add_argument('--n_epochs', type=int, default = 5)
 parser.add_argument('--neg_sampling', type=int, default = 3)
 parser.add_argument('--pdf_loss', action='store_true')
+parser.add_argument('--no_neg_sampling', action='store_true')
 
 args = parser.parse_args()
 
@@ -83,6 +84,8 @@ concepts.requires_grad=True
 params = [concepts] + [x for x in vision.parameters()]
 optimizer = optim.Adam(params, lr=args.lr)
 losses = []
+pos_losses = []
+neg_losses = []
 
 for epoch in range(args.n_epochs):
     for i, (img, (pos_target, neg_target)) in enumerate(dataloader):
@@ -94,15 +97,25 @@ for epoch in range(args.n_epochs):
         if args.pdf_loss:
             _, ladj, log_probs = model.transform(features, concepts[pos_target], with_ladj=True, with_log_probs=True)
             pos_loss = (ladj + log_probs).mean()
-            neg_loss = model.transform(features.repeat_interleave(NEG_SAMPLING, 0), concepts[neg_target.view(-1)], negative_example=True).mean()
+            _, ladj, log_probs = model.transform(features.repeat_interleave(NEG_SAMPLING, 0), concepts[neg_target.view(-1)], negative_example=True, with_ladj=True, with_log_probs=True)
             neg_loss = (ladj + log_probs).mean()
         else:
             pos_loss = model(features, concepts[pos_target]).mean()
             neg_loss = model(features.repeat_interleave(NEG_SAMPLING, 0), concepts[neg_target.view(-1)], negative_example=True).mean()
-        loss = pos_loss + neg_loss 
+
+        if args.no_neg_sampling:
+            loss = pos_loss
+        else:
+            loss = pos_loss + neg_loss 
         loss.backward()
         losses.append(loss)
+        pos_losses.append(pos_loss)
+        neg_losses.append(neg_loss)
+
         optimizer.step()
         if i % 100 == 0:
-            print(f"Epoch {epoch+1}/{args.n_epochs}, step {i}, loss={sum([l.item() for l in losses])/len(losses)}")
+            print(f"Epoch {epoch+1}/{args.n_epochs}, step {i}")
+            print(f"loss={sum([l.item() for l in losses])/len(losses)} ")
+            print(f"pos_loss={sum([l.item() for l in pos_losses])/len(pos_losses)} ")
+            print(f"neg_loss={sum([l.item() for l in neg_losses])/len(neg_losses)} ")
             losses = [] 
