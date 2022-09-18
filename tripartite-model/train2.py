@@ -120,3 +120,6 @@ for epoch in range(args.n_epochs):
             print(f"pos_loss={sum([l.item() for l in pos_losses])/len(pos_losses)} ")
             print(f"neg_loss={sum([l.item() for l in neg_losses])/len(neg_losses)} ")
             losses = [] 
+            neg_losses = [] 
+            pos_losses = [] 
+
