@@ -28,6 +28,7 @@ parser.add_argument('--lr', type=float, default = 1e-3)
 parser.add_argument('--batch_size', type=int, default = 128)
 parser.add_argument('--n_epochs', type=int, default = 5)
 parser.add_argument('--neg_sampling', type=int, default = 3)
+parser.add_argument('--pdf_loss', action='store_true')
 
 args = parser.parse_args()
 
@@ -90,8 +91,14 @@ for epoch in range(args.n_epochs):
         pos_target = pos_target.to(device)
         optimizer.zero_grad()
         features = vision(img)
-        pos_loss = model(features, concepts[pos_target]).mean()
-        neg_loss = model(features.repeat_interleave(NEG_SAMPLING, 0), concepts[neg_target.view(-1)], negative_example=True).mean()
+        if args.pdf_loss:
+            _, ladj, log_probs = model.transform(features, concepts[pos_target], with_ladj=True, with_log_probs=True)
+            pos_loss = (ladj + log_probs).mean()
+            neg_loss = model.transform(features.repeat_interleave(NEG_SAMPLING, 0), concepts[neg_target.view(-1)], negative_example=True).mean()
+            neg_loss = (ladj + log_probs).mean()
+        else:
+            pos_loss = model(features, concepts[pos_target]).mean()
+            neg_loss = model(features.repeat_interleave(NEG_SAMPLING, 0), concepts[neg_target.view(-1)], negative_example=True).mean()
         loss = pos_loss + neg_loss 
         loss.backward()
         losses.append(loss)
