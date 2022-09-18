@@ -123,5 +123,4 @@ for epoch in range(args.n_epochs):
             losses = [] 
             neg_losses = [] 
             pos_losses = [] 
-            break
     scheduler.step()
