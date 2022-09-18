@@ -85,7 +85,7 @@ concepts.requires_grad=True
 
 params = [concepts] + [x for x in vision.parameters()]
 optimizer = optim.Adam(params, lr=args.lr)
-scheduler = lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.1)
+scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.1)
 losses = []
 pos_losses = []
 neg_losses = []
