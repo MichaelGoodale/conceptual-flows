@@ -165,7 +165,7 @@ class MaskedCouplingFlow(nn.Module):
 
 class ConceptDistribution():
 
-    def __init__(self, dim=2, k=5, neg_k=5, outer_center=0.75, radius=1.0, eps=1e-9):
+    def __init__(self, dim=2, k=5, neg_k=5, outer_center=0.5, radius=1.0, eps=1e-9):
         '''
             Args:
                 dim (int): number of dimensions
