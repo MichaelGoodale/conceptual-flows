@@ -17,8 +17,8 @@ from torchvision.datasets import CIFAR10
 from torchvision import transforms
 
 parser = argparse.ArgumentParser() 
-parser.add_argument('--k', type='int', default=5)
-parser.add_argument('--neg_k', type='int', default=5)
+parser.add_argument('--k', type=int, default=5)
+parser.add_argument('--neg_k', type=int, default=5)
 parser.add_argument('--n_hidden', type=int, default=32)
 parser.add_argument('--n_couplings', type=int, default=16)
 parser.add_argument('--radius', type=float, default = 1.0)
