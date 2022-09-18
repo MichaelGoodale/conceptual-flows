@@ -17,6 +17,7 @@ from torchvision.datasets import CIFAR10
 from torchvision import transforms
 
 parser = argparse.ArgumentParser() 
+parser.add_argument('--alpha', type=float, default=0.9)
 parser.add_argument('--dim', type=int, default=2)
 parser.add_argument('--k', type=int, default=5)
 parser.add_argument('--neg_k', type=int, default=5)
@@ -107,7 +108,7 @@ for epoch in range(args.n_epochs):
         if args.no_neg_sampling:
             loss = pos_loss
         else:
-            loss = pos_loss + neg_loss 
+            loss = args.alpha*pos_loss + (1-args.alpha)*neg_loss 
         loss.backward()
         losses.append(loss)
         pos_losses.append(pos_loss)
