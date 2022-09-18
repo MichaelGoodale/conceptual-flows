@@ -57,6 +57,27 @@ class MaskedCouplingFlow(nn.Module):
         bias_size = self.dim + (self.n_layers - 1) * self.n_hidden
         return 2*(weight_size + bias_size)
 
+    def generate_identity_feature(self) -> Tensor:
+        w = []
+        for i in range(self.n_layers):
+            if i == 0:
+                w.append(torch.eye(self.dim, self.n_hidden))
+                w.append(torch.eye(self.dim, self.n_hidden))
+                w.append(torch.zeros(self.n_hidden))
+                w.append(torch.zeros(self.n_hidden))
+            elif i == self.n_layers - 1:
+                w.append(torch.eye(self.n_hidden, self.dim))
+                w.append(torch.eye(self.n_hidden, self.dim))
+                w.append(torch.zeros(self.dim))
+                w.append(torch.zeros(self.dim))
+            else:
+                w.append(torch.eye(self.n_hidden, self.n_hidden))
+                w.append(torch.eye(self.n_hidden, self.n_hidden))
+                w.append(torch.zeros(self.n_hidden))
+                w.append(torch.zeros(self.n_hidden))
+        w = torch.concat([x.view(-1) for x in w])
+        return w
+
     def get_weights_and_biases(self, W: Tensor) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
         '''Transform a vector representing the terms to the weights and biases of s and t
         Pretty ugly code but it gets the job done. 
