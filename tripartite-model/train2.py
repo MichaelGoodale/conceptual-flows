@@ -85,6 +85,7 @@ concepts.requires_grad=True
 
 params = [concepts] + [x for x in vision.parameters()]
 optimizer = optim.Adam(params, lr=args.lr)
+scheduler = lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.1)
 losses = []
 pos_losses = []
 neg_losses = []
@@ -113,7 +114,6 @@ for epoch in range(args.n_epochs):
         losses.append(loss)
         pos_losses.append(pos_loss)
         neg_losses.append(neg_loss)
-
         optimizer.step()
         if i % 100 == 0:
             print(f"Epoch {epoch+1}/{args.n_epochs}, step {i}")
@@ -123,4 +123,5 @@ for epoch in range(args.n_epochs):
             losses = [] 
             neg_losses = [] 
             pos_losses = [] 
-
+            break
+    scheduler.step()
