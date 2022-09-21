@@ -158,8 +158,8 @@ class MaskedCouplingFlow(nn.Module):
         s = self.get_s(masked_x, s_w, s_b)
         t = self.net_forward(masked_x, t_w, t_b)
 
-        log_abs_det_jacobian = -torch.sum(torch.abs(s), dim=-1)
         x = masked_x + (1-self.mask) * (x - t) * (torch.exp(-s) + self.eps)
+        log_abs_det_jacobian = -torch.sum(torch.abs(s), dim=-1)
 
         return x, log_abs_det_jacobian
 
@@ -189,9 +189,10 @@ class ConceptDistribution():
 
         r = torch.linalg.vector_norm(x, dim=-1) / self.radius
         if negative_example: # These are the derivatives of their CDF, (i.e., their PDF)
-            scale_fac = math.sqrt(math.pi)
-            scale_fac *= math.erf(self.neg_k*(1-self.c)) + math.erf(self.neg_k*self.c)
-            prob = 2*self.neg_k*torch.exp(-self.neg_k ** 2 * (r - self.c) **2) / scale_fac
+            #scale_fac = math.sqrt(math.pi)
+            #scale_fac *= math.erf(self.neg_k*(1-self.c)) + math.erf(self.neg_k*self.c)
+            #prob = 2*self.neg_k*torch.exp(-self.neg_k ** 2 * (r - self.c) **2) / scale_fac
+            prob = math.sqrt(math.pi)*math.erf(self.k) * torch.exp(torch.erfinv((r * math.erf(self.k)) ** 2)) / (2*self.k)
         else:
             prob = 2*self.k*torch.exp(-self.k**2 * r ** 2) / (math.sqrt(math.pi) * math.erf(self.k))
 
@@ -200,8 +201,9 @@ class ConceptDistribution():
     def log_cdf(self, x: Tensor, negative_example=False):
         r = torch.linalg.vector_norm(x, dim=-1) / self.radius
         if negative_example: # These are the derivatives of their CDF, (i.e., their PDF)
-            scale_fac = math.erf(self.neg_k*(1-self.c)) + math.erf(self.neg_k*self.c)
-            prob = (torch.erf(self.neg_k*(r-self.c)) + math.erf(self.neg_k*self.c)) / scale_fac
+            #scale_fac = math.erf(self.neg_k*(1-self.c)) + math.erf(self.neg_k*self.c)
+            #prob = (torch.erf(self.neg_k*(r-self.c)) + math.erf(self.neg_k*self.c)) / scale_fac
+            prob = torch.erfinv(math.erf(self.k) * r) / self.k
         else:
             prob = 1-torch.erf(self.k*r) / math.erf(self.k) #1 - is just to make the CDF go from right to left rather than left to right
         return -torch.log(prob+self.eps)
@@ -212,9 +214,10 @@ class ConceptDistribution():
         u = F.normalize(u)
         r = torch.rand(n, 1)
         if negative_example:
-            to_invert = r * (math.erf(self.neg_k*self.c) + math.erf(self.neg_k*(1-self.c))) 
-            to_invert = to_invert - math.erf(self.c*self.neg_k)
-            r = (self.c*self.neg_k + torch.erfinv(to_invert)) / self.neg_k
+            #to_invert = r * (math.erf(self.neg_k*self.c) + math.erf(self.neg_k*(1-self.c))) 
+            #to_invert = to_invert - math.erf(self.c*self.neg_k)
+            #r = (self.c*self.neg_k + torch.erfinv(to_invert)) / self.neg_k
+            r = torch.erf(self.k *  r) / math.erf(self.k)
         else:
             r = torch.erfinv(math.erf(self.k) * r) / self.k
         return self.radius*r*u
