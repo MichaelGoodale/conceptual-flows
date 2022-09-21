@@ -83,7 +83,7 @@ class TripartiteModel(nn.Module):
             return e_position, log_abs_det_jacobian
         return e_position
 
-    def forward(self, x: Tensor, W: Tensor, negative_example: bool = False):
+    def forward(self, x: Tensor, W: Tensor, negative_example: bool = False, return_position=False):
         ''' 
         Determines whether point x (in E-space) is a member of the predicated defined by weight W
 
@@ -96,6 +96,8 @@ class TripartiteModel(nn.Module):
             probs: Returns the negative log probability that x is a member of predicate W or, if positive_probs=False,
             the negative log probability that it is not.
         '''
-        x_in_W, log_abs_det_jacobian = self.transform(x, W, with_ladj=True)
+        x_in_W = self.transform(x, W)
+        if return_position:
+            return x_in_W, self.distribution.log_cdf(x_in_W, negative_example=negative_example)
         return self.distribution.log_cdf(x_in_W, negative_example=negative_example)
 

@@ -29,6 +29,7 @@ parser.add_argument('--frozen', action='store_true')
 parser.add_argument('--lr', type=float, default = 1e-3)
 parser.add_argument('--batch_size', type=int, default = 128)
 parser.add_argument('--n_epochs', type=int, default = 5)
+parser.add_argument('--clip', type=float, default = 1.0)
 parser.add_argument('--neg_sampling', type=int, default = 3)
 parser.add_argument('--pdf_loss', action='store_true')
 parser.add_argument('--no_neg_sampling', action='store_true')
@@ -38,7 +39,7 @@ args = parser.parse_args()
 model = TripartiteModel(dim=args.dim,
                         n_hidden=args.n_hidden,
                         n_couplings=args.n_couplings,
-                        clip=1.0, 
+                        clip=args.clip, 
                         radius=args.radius,
                         k=args.k 
                         )
@@ -126,6 +127,7 @@ for epoch in range(args.n_epochs):
         else:
             pos_loss = model(features, concepts[pos_target]).mean()
             neg_loss = model(features.repeat_interleave(NEG_SAMPLING, 0), concepts[neg_target.view(-1)], negative_example=True).mean()
+            neg_loss = neg_loss.mean()
 
         if args.no_neg_sampling:
             loss = pos_loss
