@@ -27,7 +27,6 @@ parser.add_argument('--n_hidden', type=int, default=32)
 parser.add_argument('--n_couplings', type=int, default=16)
 parser.add_argument('--radius', type=float, default = 1.0)
 parser.add_argument('--frozen', action='store_true')
-parser.add_argument('--normal_init', action='store_true')
 parser.add_argument('--lr', type=float, default = 1e-3)
 parser.add_argument('--batch_size', type=int, default = 128)
 parser.add_argument('--n_epochs', type=int, default = 5)
@@ -80,7 +79,7 @@ vision.to(device)
 
 identity = model.couplings[0].generate_identity_feature().repeat(len(model.couplings))
 concepts = identity.repeat(N_CLASSES, 1)
-concepts += torch.normal(torch.zeros((N_CLASSES, model.feature_size), device=device)) * 0.01
+concepts += torch.normal(torch.zeros((N_CLASSES, model.feature_size))).to(device) * 0.01
 concepts = concepts.to(device)
 
 concepts.requires_grad=True
