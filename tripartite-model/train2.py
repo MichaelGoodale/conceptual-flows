@@ -79,7 +79,7 @@ vision.to(device)
 
 identity = model.couplings[0].generate_identity_feature().repeat(len(model.couplings))
 concepts = identity.repeat(N_CLASSES, 1)
-concepts += torch.normal(torch.zeros((N_CLASSES, model.feature_size))).to(device) * 0.01
+concepts += torch.normal(torch.zeros((N_CLASSES, model.feature_size))) * 0.01
 concepts = concepts.to(device)
 
 concepts.requires_grad=True
