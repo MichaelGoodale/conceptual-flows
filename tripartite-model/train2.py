@@ -78,12 +78,10 @@ num_ftrs = vision.fc.in_features
 vision.fc = nn.Linear(num_ftrs, args.dim)
 vision.to(device)
 
-if args.normal_init:
-    concepts = torch.normal(torch.zeros((N_CLASSES, model.feature_size), device=device)) * 0.05
-else:
-    identity = model.couplings[0].generate_identity_feature().repeat(len(model.couplings))
-    concepts = identity.repeat(N_CLASSES, 1)
-    concepts = concepts.to(device)
+identity = model.couplings[0].generate_identity_feature().repeat(len(model.couplings))
+concepts = identity.repeat(N_CLASSES, 1)
+concepts += torch.normal(torch.zeros((N_CLASSES, model.feature_size), device=device)) * 0.01
+concepts = concepts.to(device)
 
 concepts.requires_grad=True
 
