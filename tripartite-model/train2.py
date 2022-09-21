@@ -1,4 +1,5 @@
 import math 
+import argparse
 from typing import Tuple
 
 import torch
@@ -10,11 +11,12 @@ from tripartite_model import TripartiteModel
 import numpy as np
 import matplotlib.pyplot as plt
 
-import argparse
 
 from torchvision.models import resnet18, ResNet18_Weights
 from torchvision.datasets import CIFAR10
 from torchvision import transforms
+
+from tqdm import tqdm 
 
 parser = argparse.ArgumentParser() 
 parser.add_argument('--alpha', type=float, default=0.9)
@@ -54,8 +56,10 @@ def target_transform(target: int) -> Tuple[int, np.array]:
     return (target, np.random.choice(rand_dist, NEG_SAMPLING))
 
 dataset = CIFAR10('./caltech/', download=True, transform=data_transforms, target_transform=target_transform)
-dataloader = torch.utils.data.DataLoader(dataset, batch_size=args.batch_size,
-                                             shuffle=True, num_workers=2)
+train, test = torch.utils.data.random_split(dataset, [int(0.8*len(dataset)), int(0.2*len(dataset))], generator=torch.Generator().manual_seed(42))
+
+train_dataloader = torch.utils.data.DataLoader(train, batch_size=args.batch_size, shuffle=True, num_workers=2)
+test_dataloader = torch.utils.data.DataLoader(test, batch_size=args.batch_size, shuffle=True, num_workers=2)
 
 
 if torch.cuda.is_available():
@@ -90,8 +94,25 @@ losses = []
 pos_losses = []
 neg_losses = []
 
+def validate(model, vision, concepts):
+    with torch.no_grad():
+        n = 0
+        pos_correct = 0
+        neg_correct = 0
+        for img, (pos_target, neg_target) in tqdm(test_dataloader):
+            n += len(pos_target)
+            img = img.to(device)
+            neg_target = neg_target.to(device)
+            pos_target = pos_target.to(device)
+            optimizer.zero_grad()
+            features = vision(img)
+            pos_correct += (model(features, concepts[pos_target]) < -math.log(0.5)).sum().item()
+            neg_correct += (model(features.repeat_interleave(NEG_SAMPLING, 0), concepts[neg_target.view(-1)], negative_example=True) < -math.log(0.5)).sum().item()
+        print(f'Positive examples: {pos_correct/n:.3f}\tNegative examples{neg_correct/(NEG_SAMPLING*n):.3f}')
+
+
 for epoch in range(args.n_epochs):
-    for i, (img, (pos_target, neg_target)) in enumerate(dataloader):
+    for i, (img, (pos_target, neg_target)) in enumerate(train_dataloader):
         img = img.to(device)
         neg_target = neg_target.to(device)
         pos_target = pos_target.to(device)
@@ -121,6 +142,7 @@ for epoch in range(args.n_epochs):
             print(f"loss={sum([l.item() for l in losses])/len(losses)} ")
             print(f"pos_loss={sum([l.item() for l in pos_losses])/len(pos_losses)} ")
             print(f"neg_loss={sum([l.item() for l in neg_losses])/len(neg_losses)} ")
+            validate(model, vision, concepts)
             losses = [] 
             neg_losses = [] 
             pos_losses = [] 
