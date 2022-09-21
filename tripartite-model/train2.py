@@ -21,8 +21,7 @@ from tqdm import tqdm
 parser = argparse.ArgumentParser() 
 parser.add_argument('--alpha', type=float, default=0.9)
 parser.add_argument('--dim', type=int, default=2)
-parser.add_argument('--k', type=int, default=5)
-parser.add_argument('--neg_k', type=int, default=5)
+parser.add_argument('--k', type=float, default=2)
 parser.add_argument('--n_hidden', type=int, default=32)
 parser.add_argument('--n_couplings', type=int, default=16)
 parser.add_argument('--radius', type=float, default = 1.0)
@@ -36,8 +35,12 @@ parser.add_argument('--no_neg_sampling', action='store_true')
 
 args = parser.parse_args()
 
-model = TripartiteModel(dim=args.dim, n_hidden=args.n_hidden, n_couplings=args.n_couplings, clip=1.0, radius=args.radius,
-                        k=args.k, neg_k=args.neg_k
+model = TripartiteModel(dim=args.dim,
+                        n_hidden=args.n_hidden,
+                        n_couplings=args.n_couplings,
+                        clip=1.0, 
+                        radius=args.radius,
+                        k=args.k 
                         )
 
 data_transforms =  transforms.Compose([

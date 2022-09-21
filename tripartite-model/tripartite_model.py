@@ -14,7 +14,7 @@ class TripartiteModel(nn.Module):
     # For all functions with W; to have all from a single W, just make sure the shape is (1, feature_size)
     # and broadcasting should take care of it. 
 
-    def __init__(self, dim:int =32, n_couplings:int =4, n_hidden=32, clip=1.0, radius=2.0, k=5, neg_k=5):
+    def __init__(self, dim:int =32, n_couplings:int =4, n_hidden=32, clip=1.0, radius=2.0, k=5):
         '''
         Args:
             dim: Dimensionality of e-space
@@ -22,7 +22,7 @@ class TripartiteModel(nn.Module):
             buffer: Buffer for sigmoid function (where sigmoid(x)=0.5)
         '''
         super().__init__()
-        self.distribution = ConceptDistribution(dim, radius=radius, k=k, neg_k=neg_k)
+        self.distribution = ConceptDistribution(dim, radius=radius, k=k)
         self.homeomorphism = BallHomeomorphism(dim, radius=radius)
         self.radius = radius
         self.couplings = nn.ModuleList()
