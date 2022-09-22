@@ -58,7 +58,7 @@ class TripartiteModel(nn.Module):
 
         if with_log_probs: 
             log_probs = self.distribution.log_prob(predicate_position, negative_example=negative_example)
-            return predicate_position, log_abs_det_jacobian+log_probs
+            return predicate_position, log_probs - log_abs_det_jacobian
         return predicate_position
 
     def inverse_transform(self, x: Tensor, W: Tensor):
