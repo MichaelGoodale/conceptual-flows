@@ -18,13 +18,13 @@ class BallHomeomorphism():
     def to_ball(self, x):
         norm = torch.linalg.vector_norm(x, dim=-1, keepdim=True)
         ladj = (self.radius ** self.dim) / ((norm+1) ** (self.dim+1))
-        ladj = torch.log(torch.abs(ladj) + self.eps).squeeze(dim=-1)
+        ladj = -torch.log(torch.abs(ladj) + self.eps).squeeze(dim=-1)
         return self.radius*x / (1 + norm), ladj
 
     def from_ball(self, x):
         norm = torch.linalg.vector_norm(x, dim=-1, keepdim=True)
         ladj = self.radius / ((self.radius - norm) ** (self.dim+1))
-        ladj = torch.log(torch.abs(ladj)+self.eps).squeeze(dim=-1)
+        ladj = -torch.log(torch.abs(ladj)+self.eps).squeeze(dim=-1)
         return x / (self.radius - norm), ladj
 
 class MaskedCouplingFlow(nn.Module):
