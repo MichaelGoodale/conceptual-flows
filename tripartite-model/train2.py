@@ -126,6 +126,7 @@ for epoch in range(args.n_epochs):
         pos_target = pos_target.to(device)
         optimizer.zero_grad()
         features = vision(img)
+
         if args.pdf_loss:
             _, ladj, log_probs = model.transform(features, concepts[pos_target], with_ladj=True, with_log_probs=True)
             pos_loss = (-ladj - log_probs).mean()
@@ -134,6 +135,7 @@ for epoch in range(args.n_epochs):
         else:
             pos_loss = model(features, concepts[pos_target]).mean()
             neg_loss = model(features.repeat_interleave(NEG_SAMPLING, 0), concepts[neg_target.view(-1)], negative_example=True).mean()
+
         if args.no_neg_sampling:
             loss = pos_loss
         else:

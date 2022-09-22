@@ -190,7 +190,7 @@ class ConceptDistribution():
         else:
             prob = 2*self.k*torch.exp(-self.k**2 * r ** 2) / (math.sqrt(math.pi) * math.erf(self.k))
 
-        return -torch.log(prob+self.eps)
+        return torch.log(prob+self.eps)
 
     def log_cdf(self, x: Tensor, negative_example=False):
         r = torch.linalg.vector_norm(x, dim=-1) / self.radius
@@ -198,7 +198,7 @@ class ConceptDistribution():
             prob = torch.erfinv(math.erf(self.k) * r) / self.k
         else:
             prob = 1-torch.erf(self.k*r) / math.erf(self.k) #1 - is just to make the CDF go from right to left rather than left to right
-        return -torch.log(prob+self.eps)
+        return torch.log(prob+self.eps)
 
     def sample(self, n: int, negative_example=False):
         '''Adapted from http://extremelearning.com.au/how-to-generate-uniformly-random-points-on-n-spheres-and-n-balls/'''
