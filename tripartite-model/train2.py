@@ -104,7 +104,7 @@ def validate(model, vision, concepts):
         neg_mean = 0
         p = torch.zeros(args.dim)
         p[0] = model.distribution.boundary_norm()
-        cutoff = torch.log_cdf(p)
+        cutoff = model.distribution.log_cdf(p)
         for img, (pos_target, neg_target) in tqdm(test_dataloader):
             n += len(pos_target)
             img = img.to(device)
