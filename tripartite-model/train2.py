@@ -102,6 +102,9 @@ def validate(model, vision, concepts):
         neg_correct = 0
         pos_mean = 0
         neg_mean = 0
+        p = torch.zeros(args.dim)
+        p[0] = model.distribution.boundary_norm()
+        cutoff = torch.log_cdf(p)
         for img, (pos_target, neg_target) in tqdm(test_dataloader):
             n += len(pos_target)
             img = img.to(device)
@@ -110,11 +113,11 @@ def validate(model, vision, concepts):
             optimizer.zero_grad()
             features = vision(img)
             pos_position, pos_outputs = model(features, concepts[pos_target], return_position=True)
-            pos_correct += (pos_outputs > math.log(0.5)).sum().item()
+            pos_correct += (pos_outputs > cutoff).sum().item()
             pos_mean += torch.exp(pos_outputs).sum()
 
             neg_position, neg_outputs = (model(features.repeat_interleave(NEG_SAMPLING, 0), concepts[neg_target.view(-1)], negative_example=True, return_position=True))
-            neg_correct += (neg_outputs > math.log(0.5)).sum().item()
+            neg_correct += (neg_outputs > cutoff).sum().item()
             neg_mean += torch.exp(neg_outputs).sum()
         print(f'Positive examples: {pos_correct/n:.3f}\tNegative examples{neg_correct/(NEG_SAMPLING*n):.3f}')
         print(f'Positive mean: {pos_mean/n:.3f}\tNegative mean{neg_mean/(NEG_SAMPLING*n):.3f}')
