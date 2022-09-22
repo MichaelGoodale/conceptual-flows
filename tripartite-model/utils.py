@@ -147,7 +147,7 @@ class MaskedCouplingFlow(nn.Module):
         s = self.get_s(masked_x, s_w, s_b)
         t = self.net_forward(masked_x, t_w, t_b)
 
-        y = masked_x + (1-self.mask) * (x * (torch.exp(s)+self.eps) + t) 
+        y = masked_x + (1-self.mask) * (x * torch.exp(s)) + t) 
         log_abs_det_jacobian = torch.sum((1-self.mask)*torch.abs(s), dim=-1)
 
         return y, log_abs_det_jacobian
@@ -158,7 +158,7 @@ class MaskedCouplingFlow(nn.Module):
         s = self.get_s(masked_x, s_w, s_b)
         t = self.net_forward(masked_x, t_w, t_b)
 
-        x = masked_x + (1-self.mask) * (x - t) * (torch.exp(-s) + self.eps)
+        x = masked_x + (1-self.mask) * (x - t) * torch.exp(-s)
         log_abs_det_jacobian = -torch.sum((1-self.mask)*torch.abs(s), dim=-1)
 
         return x, log_abs_det_jacobian
