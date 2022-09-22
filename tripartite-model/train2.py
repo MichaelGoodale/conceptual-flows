@@ -110,11 +110,12 @@ def validate(model, vision, concepts):
             optimizer.zero_grad()
             features = vision(img)
             pos_position, pos_outputs = model(features, concepts[pos_target], return_position=True)
-            pos_correct += (pos_outputs < -math.log(0.5)).sum().item()
-            neg_position, neg_outputs = (model(features.repeat_interleave(NEG_SAMPLING, 0), concepts[neg_target.view(-1)], negative_example=True, return_position=True))
-            neg_mean += torch.exp(neg_outputs).sum()
+            pos_correct += (pos_outputs > math.log(0.5)).sum().item()
             pos_mean += torch.exp(pos_outputs).sum()
-            neg_correct += (neg_outputs < -math.log(0.5)).sum().item()
+
+            neg_position, neg_outputs = (model(features.repeat_interleave(NEG_SAMPLING, 0), concepts[neg_target.view(-1)], negative_example=True, return_position=True))
+            neg_correct += (neg_outputs > math.log(0.5)).sum().item()
+            neg_mean += torch.exp(neg_outputs).sum()
         print(f'Positive examples: {pos_correct/n:.3f}\tNegative examples{neg_correct/(NEG_SAMPLING*n):.3f}')
         print(f'Positive mean: {pos_mean/n:.3f}\tNegative mean{neg_mean/(NEG_SAMPLING*n):.3f}')
 
