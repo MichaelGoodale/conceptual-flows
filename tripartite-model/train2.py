@@ -112,8 +112,8 @@ def validate(model, vision, concepts):
             pos_position, pos_outputs = model(features, concepts[pos_target], return_position=True)
             pos_correct += (pos_outputs < -math.log(0.5)).sum().item()
             neg_position, neg_outputs = (model(features.repeat_interleave(NEG_SAMPLING, 0), concepts[neg_target.view(-1)], negative_example=True, return_position=True))
-            neg_mean += torch.exp(-neg_outputs).sum()
-            pos_mean += torch.exp(-pos_outputs).sum()
+            neg_mean += torch.exp(neg_outputs).sum()
+            pos_mean += torch.exp(pos_outputs).sum()
             neg_correct += (neg_outputs < -math.log(0.5)).sum().item()
         print(f'Positive examples: {pos_correct/n:.3f}\tNegative examples{neg_correct/(NEG_SAMPLING*n):.3f}')
         print(f'Positive mean: {pos_mean/n:.3f}\tNegative mean{neg_mean/(NEG_SAMPLING*n):.3f}')
@@ -133,8 +133,8 @@ for epoch in range(args.n_epochs):
             _, ladj, log_probs = model.transform(features.repeat_interleave(NEG_SAMPLING, 0), concepts[neg_target.view(-1)], negative_example=True, with_ladj=True, with_log_probs=True)
             neg_loss = (-ladj - log_probs).mean()
         else:
-            pos_loss = model(features, concepts[pos_target]).mean()
-            neg_loss = model(features.repeat_interleave(NEG_SAMPLING, 0), concepts[neg_target.view(-1)], negative_example=True).mean()
+            pos_loss = -model(features, concepts[pos_target]).mean()
+            neg_loss = -model(features.repeat_interleave(NEG_SAMPLING, 0), concepts[neg_target.view(-1)], negative_example=True).mean()
 
         if args.no_neg_sampling:
             loss = pos_loss
