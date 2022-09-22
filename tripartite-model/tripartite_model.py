@@ -41,7 +41,7 @@ class TripartiteModel(nn.Module):
             raise ValueError(f'Weight vector W should have size{self.feature_size} not {W.shape}')
         return torch.split(W, self.feature_size // len(self.couplings), dim=-1)
 
-    def transform(self, x: Tensor, W: Tensor, with_ladj=False, with_log_probs=False, negative_example=False):
+    def transform(self, x: Tensor, W: Tensor, with_log_probs=False, negative_example=False):
         '''
         Takes x in E-space coordinates and converts them to the predicate 
         described by the weighting tensor W
@@ -57,14 +57,9 @@ class TripartiteModel(nn.Module):
         log_abs_det_jacobian += ladj
 
 
-        if with_ladj and with_log_probs: 
+        if with_log_probs: 
             log_probs = self.distribution.log_prob(predicate_position, negative_example=negative_example)
-            return predicate_position, log_abs_det_jacobian, log_probs
-        if with_ladj:
-            return predicate_position, log_abs_det_jacobian
-        if with_log_probs:
-            log_probs = self.distribution.log_prob(predicate_position, negative_example=negative_example)
-            return predicate_position, log_probs
+            return predicate_position, log_abs_det_jacobian+log_probs
         return predicate_position
 
     def inverse_transform(self, x: Tensor, W: Tensor):

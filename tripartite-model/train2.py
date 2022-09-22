@@ -129,10 +129,10 @@ for epoch in range(args.n_epochs):
         features = vision(img)
 
         if args.pdf_loss:
-            _, ladj, log_probs = model.transform(features, concepts[pos_target], with_ladj=True, with_log_probs=True)
-            pos_loss = (-ladj - log_probs).mean()
-            _, ladj, log_probs = model.transform(features.repeat_interleave(NEG_SAMPLING, 0), concepts[neg_target.view(-1)], negative_example=True, with_ladj=True, with_log_probs=True)
-            neg_loss = (-ladj - log_probs).mean()
+            _, log_probs = model.transform(features, concepts[pos_target], with_ladj=True, with_log_probs=True)
+            pos_loss = (-log_probs).mean()
+            _, log_probs = model.transform(features.repeat_interleave(NEG_SAMPLING, 0), concepts[neg_target.view(-1)], negative_example=True, with_ladj=True, with_log_probs=True)
+            neg_loss = (-log_probs).mean()
         else:
             pos_loss = -model(features, concepts[pos_target]).mean()
             neg_loss = -model(features.repeat_interleave(NEG_SAMPLING, 0), concepts[neg_target.view(-1)], negative_example=True).mean()
