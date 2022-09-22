@@ -56,7 +56,6 @@ class TripartiteModel(nn.Module):
         predicate_position, ladj = self.homeomorphism.to_ball(predicate_position)
         log_abs_det_jacobian += ladj
 
-
         if with_log_probs: 
             log_probs = self.distribution.log_prob(predicate_position, negative_example=negative_example)
             return predicate_position, log_abs_det_jacobian+log_probs
