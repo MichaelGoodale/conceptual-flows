@@ -165,7 +165,7 @@ class MaskedCouplingFlow(nn.Module):
 
 class ConceptDistribution():
 
-    def __init__(self, dim=2, k=5, radius=1.0, eps=1e-9):
+    def __init__(self, dim=2, k=5, radius=1.0, c = 2/3., eps=1e-9):
         '''
             Args:
                 dim (int): number of dimensions
@@ -175,6 +175,7 @@ class ConceptDistribution():
         '''
         self.dim = dim
         self.radius = radius
+        self.c = c
         self.k = k
         self.eps = eps
 
@@ -185,17 +186,17 @@ class ConceptDistribution():
 
         r = torch.linalg.vector_norm(x, dim=-1) / self.radius
         if negative_example: # These are the derivatives of their CDF, (i.e., their PDF)
-            scale = math.sqrt(math.pi)*math.erf(self.k) / (2*self.k)
-            prob = torch.exp( torch.erfinv(r * math.erf(self.k) ) ** 2) * scale
+            scale = 2*self.k / (math.sqrt(math.pi) * (math.erf(self.c*self.k) + math.erf(self.k - self.c*self.k)))
+            prob = scale * torch.exp(- self.k ** 2 * (r - self.c) ** 2) 
         else:
             prob = 2*self.k*torch.exp(-self.k**2 * r ** 2) / (math.sqrt(math.pi) * math.erf(self.k))
-
         return torch.log(prob+self.eps)
 
     def log_cdf(self, x: Tensor, negative_example=False):
         r = torch.linalg.vector_norm(x, dim=-1) / self.radius
         if negative_example: # These are the derivatives of their CDF, (i.e., their PDF)
-            prob = torch.erfinv(math.erf(self.k) * r) / self.k
+            scale = math.erf(self.c*self.k) + math.erf(self.k - self.c*self.k)
+            prob = (torch.erf(self.k*(r-self.c)) + math.erf(self.c*self.k)) / scale 
         else:
             prob = 1-torch.erf(self.k*r) / math.erf(self.k) #1 - is just to make the CDF go from right to left rather than left to right
         return torch.log(prob+self.eps)
@@ -206,7 +207,8 @@ class ConceptDistribution():
         u = F.normalize(u)
         r = torch.rand(n, 1)
         if negative_example:
-            r = torch.erf(self.k *  r) / math.erf(self.k)
+            r = r * (math.erf(self.c*self.k) + math.erf(self.k-self.k*self.c)) - math.erf(self.c*self.k)
+            r = (torch.erfinv(r) + self.c*self.k) / self.k
         else:
             r = torch.erfinv(math.erf(self.k) * r) / self.k
         return self.radius*r*u
