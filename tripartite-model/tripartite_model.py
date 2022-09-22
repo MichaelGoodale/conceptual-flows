@@ -50,7 +50,7 @@ class TripartiteModel(nn.Module):
         log_abs_det_jacobian = torch.zeros(x.shape[0], device=x.device)
 
         for coupling, weight in zip(self.couplings, self.split_weights(W)):
-            predicate_position, ladj = coupling.backward(predicate_position, weight)
+            predicate_position, ladj = coupling.forward(predicate_position, weight)
             log_abs_det_jacobian += ladj
 
         predicate_position, ladj = self.homeomorphism.to_ball(predicate_position)
@@ -65,7 +65,7 @@ class TripartiteModel(nn.Module):
         e_position, log_abs_det_jacobian = self.homeomorphism.from_ball(x)
 
         for coupling, weight in zip(reversed(self.couplings), reversed(self.split_weights(W))):
-            e_position, ladj = coupling.forward(e_position, weight)
+            e_position, ladj = coupling.backward(e_position, weight)
             log_abs_det_jacobian += ladj
 
         return e_position, log_abs_det_jacobian
