@@ -3,6 +3,9 @@ from tqdm import tqdm
 from torch import optim 
 from tripartite_model import TripartiteModel
 import matplotlib.pyplot as plt
+from sklearn.datasets import make_circles, make_moons
+import numpy as np
+
 import math 
 
 import argparse
@@ -29,33 +32,29 @@ model.to(device)
 W = torch.normal(torch.zeros(model.feature_size, device=device)) * 0.05
 W.requires_grad=True
 
-
-w1 = lambda z: torch.sin(2 * math.pi * z[:, 0] / 4)
-w2 = lambda z: 3 * torch.exp(-0.5 * ((z[:, 0] - 1) / 0.6) ** 2)
-w3 = lambda z: 3 * (1.0 / (1 + torch.exp(-(z[:, 0] - 1) / 0.3)))
-
-def density_wave(z):
-    z = torch.reshape(z, [z.shape[0], 2])
-    z1, z2 = z[:, 0], z[:, 1]
-    u = 0.5 * ((z2 - w1(z))/0.4) ** 2
-    u[torch.abs(z1) > 4] = 1e8
-    return torch.exp(-u)
-
 optimizer = optim.Adam([W], lr=args.lr)
 
-for i in range(3000):
+X, y = make_moons(n_samples = 1000)
+A = X[y==0] 
+B = X[y==1] 
+
+for i in range(2000):
     optimizer.zero_grad() 
-    x, det_jac = model.sample(W, args.batch_size, with_ladj=True)
-    loss = (det_jac - torch.log(density_wave(x) + 1e-9)).mean()
+    data = A[np.random.choice(np.arange(len(A)), size=args.batch_size)]
+    data = torch.tensor(data, device=device, dtype=torch.float)
+    _, log_probs = model.transform(data, W, with_log_probs=True)
+    loss = (-log_probs).mean()
     loss.backward()
     optimizer.step()
     if i % 100 == 0:
         print(f"Step {i}, loss={loss.item()}")
 
 samples = model.sample(W, n=2000)
-neg_samples = model.sample(W, n=2000, negative_example=True)
+#neg_samples = model.sample(W, n=2000, negative_example=True)
 
-plt.scatter(*neg_samples.T.cpu().detach(), label='Negative examples')
-plt.scatter(*samples.T.cpu().detach(), label='Positive examples')
+plt.scatter(*A.T, label='A')
+#plt.scatter(*B.T, label='B')
+##plt.scatter(*neg_samples.T.cpu().detach(), label='Negative examples')
+#plt.scatter(*samples.T.cpu().detach(), label='Positive examples')
 plt.legend()
 plt.show()
