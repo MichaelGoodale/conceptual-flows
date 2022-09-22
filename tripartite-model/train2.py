@@ -134,8 +134,6 @@ for epoch in range(args.n_epochs):
         else:
             pos_loss = model(features, concepts[pos_target]).mean()
             neg_loss = model(features.repeat_interleave(NEG_SAMPLING, 0), concepts[neg_target.view(-1)], negative_example=True).mean()
-            neg_loss = neg_loss.mean()
-
         if args.no_neg_sampling:
             loss = pos_loss
         else:
