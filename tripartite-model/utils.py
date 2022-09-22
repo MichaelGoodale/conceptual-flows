@@ -185,7 +185,8 @@ class ConceptDistribution():
 
         r = torch.linalg.vector_norm(x, dim=-1) / self.radius
         if negative_example: # These are the derivatives of their CDF, (i.e., their PDF)
-            prob = math.sqrt(math.pi)*math.erf(self.k) * torch.exp(torch.erfinv((r * math.erf(self.k)) ** 2)) / (2*self.k)
+            scale = math.sqrt(math.pi)*math.erf(self.k) / (2*self.k)
+            prob = torch.exp( torch.erfinv(x * math.erf(self.k) ) ** 2) * scale
         else:
             prob = 2*self.k*torch.exp(-self.k**2 * r ** 2) / (math.sqrt(math.pi) * math.erf(self.k))
 
