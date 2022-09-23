@@ -200,7 +200,7 @@ class ConceptDistribution():
     def generate_boundary(self, n=100):
         ''' Generates n points lying on the boundary '''
         u = torch.normal(mean=torch.zeros(n, self.dim))
-        return generate_boundary * F.normalize(u)
+        return sefl.boundary_norm() * F.normalize(u)
 
     def log_cdf(self, x: Tensor, negative_example=False):
         r = torch.linalg.vector_norm(x, dim=-1) / self.radius
