@@ -60,8 +60,8 @@ class TripartiteModel(nn.Module):
             log_probs = self.distribution.log_prob(predicate_position, negative_example=negative_example)
             return predicate_position, log_probs - log_abs_det_jacobian
         elif with_both_prob:
-            log_probs_pos = self.distribution.log_prob(predicate_position, negative_example=True)
-            log_probs_neg = self.distribution.log_prob(predicate_position, negative_example=False)
+            log_probs_pos = self.distribution.log_prob(predicate_position, negative_example=False)
+            log_probs_neg = self.distribution.log_prob(predicate_position, negative_example=True)
             return predicate_position, log_probs_pos - log_abs_det_jacobian, log_probs_neg - log_abs_det_jacobian
         return predicate_position
 
