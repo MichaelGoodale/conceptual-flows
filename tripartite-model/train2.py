@@ -83,7 +83,7 @@ def train_model(alpha=0.9, dim=2, k=2, n_hidden=32, n_couplings=16,
 
     identity = model.couplings[0].generate_identity_feature().repeat(len(model.couplings))
     #concepts = identity.repeat(N_CLASSES, 1)
-    concepts = torch.normal(torch.zeros((N_CLASSES, model.feature_size))) * 0.05
+    concepts = torch.normal(torch.zeros((N_CLASSES, model.feature_size))) 
     concepts = concepts.to(device)
 
     concepts.requires_grad=True
