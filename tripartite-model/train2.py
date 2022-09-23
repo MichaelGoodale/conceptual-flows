@@ -137,8 +137,9 @@ def train_model(alpha=0.9, dim=2, k=2, n_hidden=32, n_couplings=16,
             if pdf_loss:
                 _, log_probs = model.transform(features, concepts[pos_target], with_log_probs=True)
                 pos_loss = (-log_probs).mean()
-                _, log_probs = model.transform(features.repeat_interleave(NEG_SAMPLING, 0), concepts[neg_target.view(-1)], negative_example=True, with_log_probs=True)
-                neg_loss = (-log_probs).mean()
+                #_, log_probs = model.transform(features.repeat_interleave(NEG_SAMPLING, 0), concepts[neg_target.view(-1)], negative_example=True, with_log_probs=True)
+                neg_loss = -model(features.repeat_interleave(NEG_SAMPLING, 0), concepts[neg_target.view(-1)], negative_example=True).mean()
+                #neg_loss = (-log_probs).mean()
             else:
                 pos_loss = -model(features, concepts[pos_target]).mean()
                 neg_loss = -model(features.repeat_interleave(NEG_SAMPLING, 0), concepts[neg_target.view(-1)], negative_example=True).mean()
