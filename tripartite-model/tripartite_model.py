@@ -41,7 +41,7 @@ class TripartiteModel(nn.Module):
             raise ValueError(f'Weight vector W should have size{self.feature_size} not {W.shape}')
         return torch.split(W, self.feature_size // len(self.couplings), dim=-1)
 
-    def transform(self, x: Tensor, W: Tensor, with_log_probs=False, negative_example=False):
+    def transform(self, x: Tensor, W: Tensor, with_log_probs=False, negative_example=False, with_both_prob=False):
         '''
         Takes x in E-space coordinates and converts them to the predicate 
         described by the weighting tensor W
@@ -56,9 +56,13 @@ class TripartiteModel(nn.Module):
         predicate_position, ladj = self.homeomorphism.to_ball(predicate_position)
         log_abs_det_jacobian += ladj
 
-        if with_log_probs: 
+        if with_log_probs and not with_both_prob:
             log_probs = self.distribution.log_prob(predicate_position, negative_example=negative_example)
             return predicate_position, log_probs - log_abs_det_jacobian
+        elif with_both_prob:
+            log_probs_pos = self.distribution.log_prob(predicate_position, negative_example=True)
+            log_probs_neg = self.distribution.log_prob(predicate_position, negative_example=False)
+            return predicate_position, log_probs_pos - log_abs_det_jacobian, log_probs_neg - log_abs_det_jacobian
         return predicate_position
 
     def inverse_transform(self, x: Tensor, W: Tensor):
@@ -77,7 +81,7 @@ class TripartiteModel(nn.Module):
             return e_position, log_abs_det_jacobian
         return e_position
 
-    def forward(self, x: Tensor, W: Tensor, negative_example: bool = False, return_position=False):
+    def forward(self, x: Tensor, W: Tensor, negative_example: bool = False):
         ''' 
         Determines whether point x (in E-space) is a member of the predicated defined by weight W
 
@@ -87,11 +91,15 @@ class TripartiteModel(nn.Module):
             negative_example: bool, whether this is positive or negative sampling
 
         Returns:
-            probs: Returns the negative log probability that x is a member of predicate W or, if positive_probs=False,
+            probs: Returns the log probability that x is a member of predicate W or, if negative_example=False,
             the negative log probability that it is not.
+
+            Corresponds to probability it is from the positive distribution rather than the negative one, assuming that they are equally likely.
         '''
-        x_in_W = self.transform(x, W)
-        if return_position:
-            return x_in_W, self.distribution.log_cdf(x_in_W, negative_example=negative_example)
-        return self.distribution.log_cdf(x_in_W, negative_example=negative_example)
+        x_in_W, pos_log_probs, neg_log_probs = self.transform(x, W, with_both_prob=True)
+        marginal = torch.logsumexp(torch.stack(pos_log_probs, neg_log_probs, dim=-1), dim=-1) #Slower but should be much more stable
+        if negative_example:
+            return neg_log_probs - marginal
+        else:
+            return pos_log_probs - marginal
 

@@ -112,11 +112,11 @@ def validate(model, vision, concepts):
             pos_target = pos_target.to(device)
             optimizer.zero_grad()
             features = vision(img)
-            pos_position, pos_outputs = model(features, concepts[pos_target], return_position=True)
+            pos_outputs = model(features, concepts[pos_target])
             pos_correct += (pos_outputs > cutoff).sum().item()
             pos_mean += torch.exp(pos_outputs).sum()
 
-            neg_position, neg_outputs = (model(features.repeat_interleave(NEG_SAMPLING, 0), concepts[neg_target.view(-1)], negative_example=True, return_position=True))
+            neg_outputs = (model(features.repeat_interleave(NEG_SAMPLING, 0), concepts[neg_target.view(-1)], negative_example=True))
             neg_correct += (neg_outputs > cutoff).sum().item()
             neg_mean += torch.exp(neg_outputs).sum()
         print(f'Positive examples: {pos_correct/n:.3f}\tNegative examples{neg_correct/(NEG_SAMPLING*n):.3f}')
