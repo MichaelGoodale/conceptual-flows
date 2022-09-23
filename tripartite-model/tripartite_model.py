@@ -100,6 +100,5 @@ class TripartiteModel(nn.Module):
         marginal = torch.logsumexp(torch.stack((pos_log_probs, neg_log_probs), dim=-1), dim=-1) #Slower but should be much more stable
         if negative_example:
             return neg_log_probs - marginal
-        else:
-            return pos_log_probs - marginal
+        return pos_log_probs - marginal
 
