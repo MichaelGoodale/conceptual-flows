@@ -134,20 +134,11 @@ def train_model(alpha=0.9, dim=2, k=2, n_hidden=32, n_couplings=16,
             optimizer.zero_grad()
             features = vision(img)
 
-            if pdf_loss:
-                _, log_probs = model.transform(features, concepts[pos_target], with_log_probs=True)
-                pos_loss = (-log_probs).mean()
-                #_, log_probs = model.transform(features.repeat_interleave(NEG_SAMPLING, 0), concepts[neg_target.view(-1)], negative_example=True, with_log_probs=True)
-                neg_loss = -model(features.repeat_interleave(NEG_SAMPLING, 0), concepts[neg_target.view(-1)], negative_example=True).mean()
-                #neg_loss = (-log_probs).mean()
-            else:
-                pos_loss = -model(features, concepts[pos_target]).mean()
-                neg_loss = -model(features.repeat_interleave(NEG_SAMPLING, 0), concepts[neg_target.view(-1)], negative_example=True).mean()
-
-            if no_neg_sampling:
-                loss = pos_loss
-            else:
-                loss = alpha*pos_loss + (1-alpha)*neg_loss 
+            _, log_probs = model.transform(features, concepts[pos_target], with_log_probs=True)
+            pos_loss = (-log_probs).mean()
+            _, log_probs = model.transform(features.repeat_interleave(NEG_SAMPLING, 0), concepts[neg_target.view(-1)], negative_example=True, with_log_probs=True)
+            neg_loss = (-log_probs).mean()
+            loss = alpha*pos_loss + (1-alpha)*neg_loss 
 
             loss.backward()
             losses.append(loss)
@@ -180,13 +171,10 @@ if __name__ == '__main__':
     parser.add_argument('--n_epochs', type=int, default = 5)
     parser.add_argument('--clip', type=float, default = 1.0)
     parser.add_argument('--neg_sampling', type=int, default = 3)
-    parser.add_argument('--pdf_loss', action='store_true')
-    parser.add_argument('--no_neg_sampling', action='store_true')
 
     args = parser.parse_args()
 
     train_model(alpha=args.alpha, dim=args.dim, k=args.k, n_hidden=args.n_hidden,
                 n_couplings=args.n_couplings, radius=args.radius, frozen=args.frozen,
                 lr=args.lr, batch_size=args.batch_size, n_epochs=args.n_epochs,
-                clip=args.clip, neg_sampling=args.neg_sampling, pdf_loss=args.pdf_loss,
-                no_neg_sampling=args.no_neg_sampling)
+                clip=args.clip, neg_sampling=args.neg_sampling)

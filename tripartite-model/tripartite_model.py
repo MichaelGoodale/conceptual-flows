@@ -75,6 +75,10 @@ class TripartiteModel(nn.Module):
         return e_position, log_abs_det_jacobian
 
     def sample(self, W: Tensor, n: int = 128, with_ladj=False, negative_example = False):
+        n_concepts = 1
+        if W.ndim > 1:
+            n_concepts = W.shape[0]
+            
         samples = self.distribution.sample(n, negative_example=negative_example).to(W.device)
         e_position, log_abs_det_jacobian = self.inverse_transform(samples, W)
         if with_ladj:
