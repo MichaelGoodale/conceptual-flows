@@ -97,7 +97,7 @@ class TripartiteModel(nn.Module):
             Corresponds to probability it is from the positive distribution rather than the negative one, assuming that they are equally likely.
         '''
         x_in_W, pos_log_probs, neg_log_probs = self.transform(x, W, with_both_prob=True)
-        marginal = torch.logsumexp(torch.stack(pos_log_probs, neg_log_probs, dim=-1), dim=-1) #Slower but should be much more stable
+        marginal = torch.logsumexp(torch.stack((pos_log_probs, neg_log_probs), dim=-1), dim=-1) #Slower but should be much more stable
         if negative_example:
             return neg_log_probs - marginal
         else:
