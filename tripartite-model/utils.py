@@ -197,6 +197,11 @@ class ConceptDistribution():
         s = 1 / (math.erf(self.k)*(math.erf(self.c*self.k)+math.erf(self.k-self.c*self.k)))
         return (self.c ** 2 - math.log(s)/(self.k**2)) / (2*self.c)
 
+    def generate_boundary(self, n=100):
+        ''' Generates n points lying on the boundary '''
+        u = torch.normal(mean=torch.zeros(n, self.dim))
+        return generate_boundary * F.normalize(u)
+
     def log_cdf(self, x: Tensor, negative_example=False):
         r = torch.linalg.vector_norm(x, dim=-1) / self.radius
         if negative_example: # These are the derivatives of their CDF, (i.e., their PDF)
