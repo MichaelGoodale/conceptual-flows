@@ -44,10 +44,10 @@ class MaskedCouplingFlow(nn.Module):
     def net_forward(self, z: Tensor, W: List[Tensor], B: List[Tensor]) -> Tensor:
         ''' Run through a neural network of self.n_layer dimensions 
         given the weights, biases and the input.'''
-        z = z.unsqueeze(1)
+        z = z.unsqueeze(-2)
         for w, b in zip(W, B):
             z = self.activation(torch.matmul(z, w) + b)
-        return z.squeeze(1)
+        return z.squeeze(-2)
 
     @property
     def feature_size(self) -> int:
@@ -88,52 +88,51 @@ class MaskedCouplingFlow(nn.Module):
 
         if W.dim() == 1:
             W = W.unsqueeze(0) 
-
-        batch_size = W.shape[0]
+        batch_size = W.shape[:-1]
         s_w, s_b, t_w, t_b = [], [], [], []
         consumed = 0 
         for i in range(self.n_layers):
             if i == 0:
-                w = W[:, consumed:consumed+(self.dim*self.n_hidden)].reshape(batch_size, self.dim, self.n_hidden)
+                w = W[..., consumed:consumed+(self.dim*self.n_hidden)].reshape(*batch_size, self.dim, self.n_hidden)
                 s_w.append(w)
                 consumed += self.dim * self.n_hidden
-                w = W[:, consumed:consumed+(self.dim*self.n_hidden)].reshape(batch_size, self.dim, self.n_hidden)
+                w = W[..., consumed:consumed+(self.dim*self.n_hidden)].reshape(*batch_size, self.dim, self.n_hidden)
                 t_w.append(w)
                 consumed += self.dim * self.n_hidden
 
-                w = W[:, consumed:consumed+self.n_hidden]
-                s_b.append(w.unsqueeze(1))
+                w = W[..., consumed:consumed+self.n_hidden]
+                s_b.append(w.unsqueeze(-2))
                 consumed += self.n_hidden
-                w = W[:, consumed:consumed+self.n_hidden]
-                t_b.append(w.unsqueeze(1))
+                w = W[..., consumed:consumed+self.n_hidden]
+                t_b.append(w.unsqueeze(-2))
                 consumed += self.n_hidden
             elif i == self.n_layers - 1:
-                w = W[:, consumed:consumed+(self.n_hidden*self.dim)].reshape(batch_size, self.n_hidden, self.dim)
+                w = W[..., consumed:consumed+(self.n_hidden*self.dim)].reshape(*batch_size, self.n_hidden, self.dim)
                 s_w.append(w)
                 consumed += self.dim * self.n_hidden
-                w = W[:, consumed:consumed+(self.n_hidden*self.dim)].reshape(batch_size, self.n_hidden, self.dim)
+                w = W[..., consumed:consumed+(self.n_hidden*self.dim)].reshape(*batch_size, self.n_hidden, self.dim)
                 t_w.append(w)
                 consumed += self.dim * self.n_hidden
 
-                w = W[:, consumed:consumed+self.dim]
-                s_b.append(w.unsqueeze(1))
+                w = W[..., consumed:consumed+self.dim]
+                s_b.append(w.unsqueeze(-2))
                 consumed += self.dim
-                w = W[:, consumed:consumed+self.dim]
-                t_b.append(w.unsqueeze(1))
+                w = W[..., consumed:consumed+self.dim]
+                t_b.append(w.unsqueeze(-2))
                 consumed += self.dim
             else:
-                w = W[:, consumed:consumed+(self.n_hidden*self.n_hidden)].reshape(batch_size, self.n_hidden, self.n_hidden)
+                w = W[..., consumed:consumed+(self.n_hidden*self.n_hidden)].reshape(*batch_size, self.n_hidden, self.n_hidden)
                 s_w.append(w)
                 consumed += self.n_hidden * self.n_hidden
-                w = W[:, consumed:consumed+(self.n_hidden*self.n_hidden)].reshape(batch_size, self.n_hidden, self.n_hidden)
+                w = W[..., consumed:consumed+(self.n_hidden*self.n_hidden)].reshape(*batch_size, self.n_hidden, self.n_hidden)
                 t_w.append(w)
                 consumed += self.n_hidden * self.n_hidden
 
-                w = W[:, consumed:consumed+self.n_hidden]
-                s_b.append(w.unsqueeze(1))
+                w = W[..., consumed:consumed+self.n_hidden]
+                s_b.append(w.unsqueeze(-2))
                 consumed += self.n_hidden
-                w = W[:, consumed:consumed+self.n_hidden]
-                t_b.append(w.unsqueeze(1))
+                w = W[..., consumed:consumed+self.n_hidden]
+                t_b.append(w.unsqueeze(-2))
                 consumed += self.n_hidden
         return s_w, s_b, t_w, t_b
     
@@ -213,9 +212,11 @@ class ConceptDistribution():
 
     def sample(self, n: int, negative_example=False):
         '''Adapted from http://extremelearning.com.au/how-to-generate-uniformly-random-points-on-n-spheres-and-n-balls/'''
-        u = torch.normal(mean=torch.zeros(n, self.dim))
-        u = F.normalize(u)
-        r = torch.rand(n, 1)
+        if isinstance(n, int):
+            n = (n,)
+        u = torch.normal(mean=torch.zeros(*n, self.dim))
+        u = F.normalize(u, dim=-1)
+        r = torch.rand(*n, 1)
         if negative_example:
             r = r * (math.erf(self.c*self.k) + math.erf(self.k-self.k*self.c)) - math.erf(self.c*self.k)
             r = (torch.erfinv(r) + self.c*self.k) / self.k

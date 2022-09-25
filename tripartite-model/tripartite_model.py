@@ -47,7 +47,7 @@ class TripartiteModel(nn.Module):
         described by the weighting tensor W
         '''
         predicate_position = x 
-        log_abs_det_jacobian = torch.zeros(x.shape[0], device=x.device)
+        log_abs_det_jacobian = torch.zeros(*x.shape[:-1], device=x.device)
 
         for coupling, weight in zip(self.couplings, self.split_weights(W)):
             predicate_position, ladj = coupling.forward(predicate_position, weight)
@@ -79,8 +79,8 @@ class TripartiteModel(nn.Module):
         if W.ndim > 1:
             n_concepts = W.shape[0]
             
-        samples = self.distribution.sample(n, negative_example=negative_example).to(W.device)
-        e_position, log_abs_det_jacobian = self.inverse_transform(samples, W)
+        samples = self.distribution.sample((n_concepts, n), negative_example=negative_example).to(W.device)
+        e_position, log_abs_det_jacobian = self.inverse_transform(samples, W.unsqueeze(1).expand(-1, n,-1))
         if with_ladj:
             return e_position, log_abs_det_jacobian
         return e_position
