@@ -142,7 +142,8 @@ def train_model(alpha=0.9, dim=2, k=2, n_hidden=32, n_couplings=16,
             optimizer.zero_grad()
             features = vision(img)
 
-            _, log_probs = model.transform(features, concepts[pos_target], with_log_probs=True)
+            #_, log_probs = model.transform(features, concepts[pos_target], with_log_probs=True)
+            log_probs = model(features, concepts[pos_target])
             pos_loss = (-log_probs).mean()
             # Sample from each distribution and pass to negative of different.
             batch = model.sample(concepts[neg_targets.view(-1)], batch_size)
