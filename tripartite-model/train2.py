@@ -87,8 +87,8 @@ def train_model(alpha=0.9, dim=2, k=2, n_hidden=32, n_couplings=16,
     vision.to(device)
 
     identity = model.couplings[0].generate_identity_feature().repeat(len(model.couplings))
-    #concepts = identity.repeat(N_CLASSES, 1)
-    concepts = torch.normal(torch.zeros((N_CLASSES, model.feature_size))) * 0.15
+    concepts = torch.zeros((N_CLASSES, model.feature_size))
+    torch.nn.init.xavier_uniform_(concepts, gain=torch.nn.init.calculate_gain('selu'))
     concepts = concepts.to(device)
 
     concepts.requires_grad=True
@@ -145,8 +145,9 @@ def train_model(alpha=0.9, dim=2, k=2, n_hidden=32, n_couplings=16,
             _, log_probs = model.transform(features, concepts[pos_target], with_log_probs=True)
             pos_loss = (-log_probs).mean()
             # Sample from each distribution and pass to negative of different.
-            batch = model.sample(concepts[uniq_concepts], batch_size).repeat_interleave(NEG_SAMPLING, 0)
-            _, log_probs = model.transform(batch, concepts[neg_targets.view(-1)].unsqueeze(1).expand(-1, batch_size, -1), negative_example=True, with_log_probs=True)
+            batch = model.sample(concepts[neg_targets.view(-1)], batch_size)
+            neg_weights = concepts[uniq_concepts].repeat_interleave(NEG_SAMPLING, 0).unsqueeze(1).expand(-1, batch_size, -1)
+            _, log_probs = model.transform(batch, neg_weights, negative_example=True, with_log_probs=True)
             neg_loss = (-log_probs).mean()
             loss = alpha*pos_loss + (1-alpha)*neg_loss 
 
