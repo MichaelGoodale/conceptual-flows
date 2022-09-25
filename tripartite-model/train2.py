@@ -54,6 +54,10 @@ def train_model(alpha=0.9, dim=2, k=2, n_hidden=32, n_couplings=16,
     N_CLASSES = len(CLASSES)
     NEG_SAMPLING = neg_sampling
 
+    def get_alternatives(target: int, n=NEG_SAMPLING) -> int:
+        rand_dist = np.arange(N_CLASSES)[np.arange(N_CLASSES) != target]
+        return np.random.choice(rand_dist, n)
+
     def target_transform(target: int) -> Tuple[int, np.array]:
         rand_dist = np.arange(N_CLASSES)[np.arange(N_CLASSES) != target]
         return (target, np.random.choice(rand_dist, NEG_SAMPLING))
@@ -127,9 +131,12 @@ def train_model(alpha=0.9, dim=2, k=2, n_hidden=32, n_couplings=16,
 
 
     for epoch in range(n_epochs):
-        for i, (img, (pos_target, neg_target)) in enumerate(train_dataloader):
+        for i, (img, (pos_target, _)) in enumerate(train_dataloader):
+            uniq_concepts = pos_target.unique()
+            neg_targets = torch.tensor(np.vstack([get_alternatives(x.item()) for x in uniq_concepts]))
+
+            neg_targets = neg_targets.to(device)
             img = img.to(device)
-            neg_target = neg_target.to(device)
             pos_target = pos_target.to(device)
             optimizer.zero_grad()
             features = vision(img)
@@ -137,9 +144,8 @@ def train_model(alpha=0.9, dim=2, k=2, n_hidden=32, n_couplings=16,
             _, log_probs = model.transform(features, concepts[pos_target], with_log_probs=True)
             pos_loss = (-log_probs).mean()
             # Sample from each distribution and pass to negative of different.
-            
-            batch = model.sample(concepts[pos_target.repeat_interleave(NEG_SAMPLING,0)], 128)
-            _, log_probs = model.transform(batch, concepts[neg_target.view(-1)].unsqueeze(1).expand(-1, 128, -1), negative_example=True, with_log_probs=True)
+            batch = model.sample(concepts[uniq_concepts], batch_size).repeat_interleave(NEG_SAMPLING, 0)
+            _, log_probs = model.transform(batch, concepts[neg_targets.view(-1)].unsqueeze(1).expand(-1, batch_size, -1), negative_example=True, with_log_probs=True)
             neg_loss = (-log_probs).mean()
             loss = alpha*pos_loss + (1-alpha)*neg_loss 
 
