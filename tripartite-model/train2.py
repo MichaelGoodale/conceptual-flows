@@ -94,7 +94,7 @@ def train_model(alpha=0.9, dim=2, k=2, n_hidden=32, n_couplings=16,
     concepts.requires_grad=True
 
     params = [concepts] + [x for x in vision.parameters()]
-    optimizer = optim.Adam(params, lr=lr)
+    optimizer = optim.AdamW(params, lr=lr)
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.1)
     losses = []
     pos_losses = []
