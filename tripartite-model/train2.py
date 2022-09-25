@@ -132,6 +132,14 @@ def train_model(alpha=0.9, dim=2, k=2, n_hidden=32, n_couplings=16,
 
 
     for epoch in range(n_epochs):
+        print(f"Epoch {epoch+1}/{n_epochs}, step {i}")
+        print(f"loss={sum([l.item() for l in losses])/len(losses)} ")
+        print(f"pos_loss={sum([l.item() for l in pos_losses])/len(pos_losses)} ")
+        print(f"neg_loss={sum([l.item() for l in neg_losses])/len(neg_losses)} ")
+        validate(model, vision, concepts)
+        losses = [] 
+        neg_losses = [] 
+        pos_losses = [] 
         for i, (img, (pos_target, _)) in enumerate(train_dataloader):
             uniq_concepts = pos_target.unique()
             neg_targets = torch.tensor(np.vstack([get_alternatives(x.item()) for x in uniq_concepts]))
@@ -156,15 +164,6 @@ def train_model(alpha=0.9, dim=2, k=2, n_hidden=32, n_couplings=16,
             pos_losses.append(pos_loss)
             neg_losses.append(neg_loss)
             optimizer.step()
-            if i % 100 == 0:
-                print(f"Epoch {epoch+1}/{n_epochs}, step {i}")
-                print(f"loss={sum([l.item() for l in losses])/len(losses)} ")
-                print(f"pos_loss={sum([l.item() for l in pos_losses])/len(pos_losses)} ")
-                print(f"neg_loss={sum([l.item() for l in neg_losses])/len(neg_losses)} ")
-                validate(model, vision, concepts)
-                losses = [] 
-                neg_losses = [] 
-                pos_losses = [] 
         scheduler.step()
 
 
