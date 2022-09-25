@@ -132,10 +132,11 @@ def train_model(alpha=0.9, dim=2, k=2, n_hidden=32, n_couplings=16,
 
 
     for epoch in range(n_epochs):
-        for i, (img, (pos_target, _)) in enumerate(tqdm(train_dataloader)):
+        for i, (img, (pos_target, neg_samples)) in enumerate(tqdm(train_dataloader)):
             uniq_concepts = pos_target.unique()
             neg_targets = torch.tensor(np.vstack([get_alternatives(x.item()) for x in uniq_concepts]))
 
+            neg_samples = neg_samples.to(device)
             neg_targets = neg_targets.to(device)
             img = img.to(device)
             pos_target = pos_target.to(device)
@@ -145,11 +146,15 @@ def train_model(alpha=0.9, dim=2, k=2, n_hidden=32, n_couplings=16,
             #_, log_probs = model.transform(features, concepts[pos_target], with_log_probs=True)
             log_probs = model(features, concepts[pos_target])
             pos_loss = (-log_probs).mean()
-            # Sample from each distribution and pass to negative of different.
-            batch = model.sample(concepts[neg_targets.view(-1)], batch_size)
-            neg_weights = concepts[uniq_concepts].repeat_interleave(NEG_SAMPLING, 0).unsqueeze(1).expand(-1, batch_size, -1)
-            log_probs = model(batch, neg_weights, negative_example=True)
+            #_, log_probs = model.transform(features.repeat_interleave(NEG_SAMPLING, 0), concepts[neg_samples].view(-1), with_log_probs=True)
+            log_probs = model(features.repeat_interleave(NEG_SAMPLING, 0), concepts[neg_samples].view(-1))
             neg_loss = (-log_probs).mean()
+
+            # Sample from each distribution and pass to negative of different.
+            #batch = model.sample(concepts[neg_targets.view(-1)], batch_size)
+            #neg_weights = concepts[uniq_concepts].repeat_interleave(NEG_SAMPLING, 0).unsqueeze(1).expand(-1, batch_size, -1)
+            #log_probs = model(batch, neg_weights, negative_example=True)
+            #neg_loss = (-log_probs).mean()
             loss = alpha*pos_loss + (1-alpha)*neg_loss 
 
             loss.backward()
