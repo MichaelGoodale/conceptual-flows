@@ -97,8 +97,8 @@ def train_model(alpha=0.9, dim=2, k=2, n_hidden=32, n_couplings=16,
     optimizer = optim.AdamW(params, lr=lr)
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.1)
     losses = []
-    pos_losses = []
-    neg_losses = []
+    real_losses = []
+    sample_losses = []
 
     def validate(model, vision, concepts):
         with torch.no_grad():
@@ -158,17 +158,17 @@ def train_model(alpha=0.9, dim=2, k=2, n_hidden=32, n_couplings=16,
 
             loss.backward()
             losses.append(loss)
-            pos_losses.append(pos_loss)
-            neg_losses.append(neg_loss)
+            real_losses.append(real_loss)
+            sample_losses.append(sample_loss)
             optimizer.step()
         print(f"Epoch {epoch+1}/{n_epochs}, step {i}")
         print(f"loss={sum([l.item() for l in losses])/len(losses)} ")
-        print(f"pos_loss={sum([l.item() for l in pos_losses])/len(pos_losses)} ")
-        print(f"neg_loss={sum([l.item() for l in neg_losses])/len(neg_losses)} ")
+        print(f"real_loss={sum([l.item() for l in real_losses])/len(real_losses)} ")
+        print(f"sample_loss={sum([l.item() for l in sample_losses])/len(sample_losses)} ")
         validate(model, vision, concepts)
         losses = [] 
-        neg_losses = [] 
-        pos_losses = [] 
+        real_losses = [] 
+        sample_losses = [] 
         scheduler.step()
 
 
