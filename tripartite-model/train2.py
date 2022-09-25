@@ -23,14 +23,15 @@ from tqdm import tqdm
 
 def train_model(alpha=0.9, dim=2, k=2, n_hidden=32, n_couplings=16, 
                 radius=1.0, frozen=False, lr=1e-3, batch_size=128, n_epochs=5,
-                clip=1.0, neg_sampling=3, pdf_loss=False, no_neg_sampling=False):
+                clip=1.0, c=2/3., neg_sampling=3, pdf_loss=False, no_neg_sampling=False):
 
     model = TripartiteModel(dim=dim,
                             n_hidden=n_hidden,
                             n_couplings=n_couplings,
                             clip=clip, 
                             radius=radius,
-                            k=k 
+                            k=k,
+                            c=c
                             )
 
     data_transforms =  transforms.Compose([
@@ -180,10 +181,11 @@ if __name__ == '__main__':
     parser.add_argument('--n_epochs', type=int, default = 5)
     parser.add_argument('--clip', type=float, default = 1.0)
     parser.add_argument('--neg_sampling', type=int, default = 3)
+    parser.add_argument('--center', type=float, default = 2/3.)
 
     args = parser.parse_args()
 
     train_model(alpha=args.alpha, dim=args.dim, k=args.k, n_hidden=args.n_hidden,
                 n_couplings=args.n_couplings, radius=args.radius, frozen=args.frozen,
                 lr=args.lr, batch_size=args.batch_size, n_epochs=args.n_epochs,
-                clip=args.clip, neg_sampling=args.neg_sampling)
+                clip=args.clip, neg_sampling=args.neg_sampling, c=args.center)
