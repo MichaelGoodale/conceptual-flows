@@ -146,7 +146,7 @@ def train_model(alpha=0.9, dim=2, k=2, n_hidden=32, n_couplings=16,
             pos_loss = (-log_probs).mean()
             # Sample from each distribution and pass to negative of different.
             batch = model.sample(concepts[uniq_concepts], batch_size).repeat_interleave(NEG_SAMPLING, 0)
-            log_probs = model(batch, concepts[neg_targets.view(-1)].unsqueeze(1).expand(-1, batch_size, -1), negative_example=True)
+            log_probs = model.transforms(batch, concepts[neg_targets.view(-1)].unsqueeze(1).expand(-1, batch_size, -1), negative_example=True, with_log_probs=True)
             neg_loss = (-log_probs).mean()
             loss = alpha*pos_loss + (1-alpha)*neg_loss 
 
