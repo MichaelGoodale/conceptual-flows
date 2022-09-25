@@ -132,7 +132,7 @@ def train_model(alpha=0.9, dim=2, k=2, n_hidden=32, n_couplings=16,
 
 
     for epoch in range(n_epochs):
-        for i, (img, (pos_target, _)) in enumerate(train_dataloader):
+        for i, (img, (pos_target, _)) in enumerate(tqdm(train_dataloader)):
             uniq_concepts = pos_target.unique()
             neg_targets = torch.tensor(np.vstack([get_alternatives(x.item()) for x in uniq_concepts]))
 
