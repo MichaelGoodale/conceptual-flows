@@ -143,7 +143,7 @@ def train_model(alpha=0.9, dim=2, k=2, n_hidden=32, n_couplings=16,
             optimizer.zero_grad()
             features = vision(img)
 
-            log_probs = model(features, concepts[pos_target])
+            _, log_probs = model.transform(features, concepts[pos_target], with_log_probs=True)
             pos_loss = (-log_probs).mean()
             log_probs = model(features.repeat_interleave(NEG_SAMPLING, 0), concepts[neg_samples.view(-1)], negative_example=True)
             neg_loss = (-log_probs).mean()
