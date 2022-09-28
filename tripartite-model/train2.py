@@ -83,7 +83,9 @@ def train_model(alpha=0.9, dim=2, k=2, n_hidden=32, n_couplings=16,
         for param in vision.parameters():
             param.requires_grad = False
     num_ftrs = vision.fc.in_features
-    vision.fc = nn.Linear(num_ftrs, dim)
+    vision.fc = nn.Sequential(nn.Linear(num_ftrs, 128),
+                              nn.ReLU(),
+                              nn.Linear(128, dim))
     vision.to(device)
 
     identity = model.couplings[0].generate_identity_feature().repeat(len(model.couplings))
