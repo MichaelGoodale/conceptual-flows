@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 from tqdm import tqdm
 from torch import optim, Tensor
+import torch.nn.functional as F
 from tripartite_model import TripartiteModel
 
 import numpy as np
@@ -147,14 +148,14 @@ def train_model(alpha=0.9, dim=2, k=2, n_hidden=32, n_couplings=16,
 
             _, log_probs = model.transform(features, concepts[pos_target], with_log_probs=True)
             pos_loss = (-log_probs).mean()
-            log_probs = model(features.repeat_interleave(NEG_SAMPLING, 0), concepts[neg_samples.view(-1)], negative_example=True)
+            log_probs = F.relu(model(features.repeat_interleave(NEG_SAMPLING, 0), concepts[neg_samples.view(-1)], negative_example=True) + math.log(0.5))
             neg_loss = (-log_probs).mean()
             real_loss = pos_loss + neg_loss
 
             # Sample from each distribution and pass to negative of different.
             batch = model.sample(concepts[neg_targets.view(-1)], batch_size)
             neg_weights = concepts[uniq_concepts].repeat_interleave(NEG_SAMPLING, 0).unsqueeze(1).expand(-1, batch_size, -1)
-            log_probs = model(batch, neg_weights, negative_example=True)
+            log_probs = F.relu(model(batch, neg_weights, negative_example=True) + math.log(0.5))
             sample_loss = (-log_probs).mean()
             loss = alpha*real_loss + (1-alpha)*sample_loss
 
