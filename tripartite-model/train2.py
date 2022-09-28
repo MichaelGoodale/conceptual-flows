@@ -12,7 +12,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-from torchvision.models import resnet50, ResNet50_Weights
+from torchvision.models import resnet18, ResNet18_Weights
 from torchvision.datasets import CIFAR10
 from torchvision import transforms
 
@@ -78,7 +78,7 @@ def train_model(alpha=0.9, dim=2, k=2, n_hidden=32, n_couplings=16,
 
     model.to(device)
 
-    vision = resnet50(weights=ResNet50_Weights.DEFAULT)
+    vision = resnet18(weights=ResNet18_Weights.DEFAULT)
     if frozen:
         for param in vision.parameters():
             param.requires_grad = False
