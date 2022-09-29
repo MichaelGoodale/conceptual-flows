@@ -110,7 +110,7 @@ def train_model(alpha: float = 0.9, dim: int = 2, k: float = 2, n_hidden: int = 
             neg_correct = 0
             pos_mean = 0
             neg_mean = 0
-            cutoff = math.log(0.5)
+            cutoff = 0.5
             for img, (pos_target, neg_target) in tqdm(test_dataloader):
                 n += len(pos_target)
                 img = img.to(device)
