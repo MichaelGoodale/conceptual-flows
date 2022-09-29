@@ -119,7 +119,7 @@ def train_model(alpha: float = 0.9, dim: int = 2, k: float = 2, n_hidden: int = 
                 optimizer.zero_grad()
                 features = vision(img)
 
-                features = model.sample(features, sample_batch_size).view(batch_size*sample_batch_size, dim)
+                features = model.sample(features, sample_batch_size).view(-1, dim)
                 pos_target = pos_target.repeat_interleave(sample_batch_size, 0)
                 neg_sample = neg_sample.repeat_interleave(sample_batch_size, 0)
 
@@ -151,7 +151,7 @@ def train_model(alpha: float = 0.9, dim: int = 2, k: float = 2, n_hidden: int = 
             optimizer.zero_grad()
             features = vision(img)
 
-            features = model.sample(features, sample_batch_size).view(batch_size*sample_batch_size, dim)
+            features = model.sample(features, sample_batch_size).view(-1, dim)
             pos_target = pos_target.repeat_interleave(sample_batch_size, 0)
             neg_sample = neg_sample.repeat_interleave(sample_batch_size, 0)
 
