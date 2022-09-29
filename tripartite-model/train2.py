@@ -22,9 +22,10 @@ from tqdm import tqdm
 
 
 
-def train_model(alpha=0.9, dim=2, k=2, n_hidden=32, n_couplings=16, 
-                radius=1.0, frozen=False, lr=1e-3, batch_size=128, n_epochs=5,
-                clip=1.0, c=2/3., neg_sampling=3, pdf_loss=False, no_neg_sampling=False):
+def train_model(alpha: float = 0.9, dim: int = 2, k: float = 2, n_hidden: int = 32, n_couplings: int = 16, 
+                radius: float = 1.0, frozen: bool = False, lr:float = 1e-3, batch_size: int = 128, n_epochs: int = 5,
+                clip: float = 1.0, c:float = 2/3., neg_sampling: int = 3, pdf_loss: bool = False, no_neg_sampling: bool = False,
+                sample_batch_size: int = 32):
 
     model = TripartiteModel(dim=dim,
                             n_hidden=n_hidden,
@@ -86,7 +87,7 @@ def train_model(alpha=0.9, dim=2, k=2, n_hidden=32, n_couplings=16,
     num_ftrs = vision.fc.in_features
     vision.fc = nn.Sequential(nn.Linear(num_ftrs, 128),
                               nn.ReLU(),
-                              nn.Linear(128, dim))
+                              nn.Linear(128, model.feature_size))
     vision.to(device)
 
     identity = model.couplings[0].generate_identity_feature().repeat(len(model.couplings))
@@ -117,6 +118,11 @@ def train_model(alpha=0.9, dim=2, k=2, n_hidden=32, n_couplings=16,
                 pos_target = pos_target.to(device)
                 optimizer.zero_grad()
                 features = vision(img)
+
+                features = model.sample(features, sample_batch_size).view(batch_size*sample_batch_size, dim)
+                pos_target = pos_target.repeat_interleave(sample_batch_size, 0)
+                neg_sample = neg_sample.repeat_interleave(sample_batch_size, 0)
+
                 pos_outputs = model(features, concepts[pos_target])
                 pos_correct += (pos_outputs > cutoff).sum().item()
                 pos_mean += torch.exp(pos_outputs).sum()
@@ -134,24 +140,28 @@ def train_model(alpha=0.9, dim=2, k=2, n_hidden=32, n_couplings=16,
 
 
     for epoch in range(n_epochs):
-        for i, (img, (pos_target, neg_samples)) in enumerate(tqdm(train_dataloader)):
+        for i, (img, (pos_target, neg_sample)) in enumerate(tqdm(train_dataloader)):
             uniq_concepts = pos_target.unique()
-            neg_targets = torch.tensor(np.vstack([get_alternatives(x.item()) for x in uniq_concepts]))
+            neg_target = torch.tensor(np.vstack([get_alternatives(x.item()) for x in uniq_concepts]))
 
-            neg_samples = neg_samples.to(device)
-            neg_targets = neg_targets.to(device)
+            neg_sample = neg_sample.to(device)
+            neg_target = neg_target.to(device)
             img = img.to(device)
             pos_target = pos_target.to(device)
             optimizer.zero_grad()
             features = vision(img)
 
+            features = model.sample(features, sample_batch_size).view(batch_size*sample_batch_size, dim)
+            pos_target = pos_target.repeat_interleave(sample_batch_size, 0)
+            neg_sample = neg_sample.repeat_interleave(sample_batch_size, 0)
+
             _, log_probs = model.transform(features, concepts[pos_target], with_log_probs=True)
             pos_loss = (-log_probs).mean()
-            neg_loss = -model(features.repeat_interleave(NEG_SAMPLING, 0), concepts[neg_samples.view(-1)], negative_example=True).mean()*NEG_SAMPLING
+            neg_loss = -model(features.repeat_interleave(NEG_SAMPLING, 0), concepts[neg_sample.view(-1)], negative_example=True).mean()*NEG_SAMPLING
             real_loss = pos_loss + neg_loss
 
             # Sample from each distribution and pass to negative of different.
-            batch = model.sample(concepts[neg_targets.view(-1)], batch_size)
+            batch = model.sample(concepts[neg_target.view(-1)], batch_size)
             neg_weights = concepts[uniq_concepts].repeat_interleave(NEG_SAMPLING, 0).unsqueeze(1).expand(-1, batch_size, -1)
             sample_loss = - model(batch, neg_weights, negative_example=True).mean()
             loss = alpha*real_loss + (1-alpha)*sample_loss
@@ -186,6 +196,7 @@ if __name__ == '__main__':
     parser.add_argument('--clip', type=float, default = 1.0)
     parser.add_argument('--neg_sampling', type=int, default = 3)
     parser.add_argument('--center', type=float, default = 2/3.)
+    parser.add_argument('--sample_batch_size', type=int, default = 32)
 
     args = parser.parse_args()
 
