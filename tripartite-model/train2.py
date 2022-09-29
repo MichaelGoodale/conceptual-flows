@@ -124,14 +124,16 @@ def train_model(alpha: float = 0.9, dim: int = 2, k: float = 2, n_hidden: int = 
                 neg_target = neg_target.repeat_interleave(sample_batch_size, 0)
 
                 pos_outputs = model(features, concepts[pos_target])
+                pos_outputs = torch.exp(pos_outputs).reshape(-1, sample_batch_size).mean(dim=-1)
                 pos_correct += (pos_outputs > cutoff).sum().item()
-                pos_mean += torch.exp(pos_outputs).sum()
+                pos_mean += pos_outputs.sum()
 
                 neg_outputs = (model(features.repeat_interleave(NEG_SAMPLING, 0), concepts[neg_target.view(-1)], negative_example=True))
+                neg_outputs = torch.exp(neg_outputs).reshape(-1, sample_batch_size).mean(dim=-1)
                 neg_correct += (neg_outputs > cutoff).sum().item()
-                neg_mean += torch.exp(neg_outputs).sum()
-            print(f'Positive examples: {pos_correct/(n*sample_batch_size):.3f}\tNegative examples{neg_correct/(NEG_SAMPLING*n*sample_batch_size):.3f}')
-            print(f'Positive mean: {pos_mean/(n*sample_batch_size):.3f}\tNegative mean{neg_mean/(NEG_SAMPLING*n*sample_batch_size):.3f}')
+                neg_mean += neg_outputs.sum()
+            print(f'Positive examples: {pos_correct/(n):.3f}\tNegative examples{neg_correct/(NEG_SAMPLING*n):.3f}')
+            print(f'Positive mean: {pos_mean/(n):.3f}\tNegative mean{neg_mean/(NEG_SAMPLING*n):.3f}')
             boundary = model.distribution.generate_boundary(1000).to(device)
             for concept_idx, name in enumerate(CLASSES):
                 plt.scatter(*model.inverse_transform(boundary, concepts[concept_idx])[0].T.cpu().detach(), label=name)
@@ -139,6 +141,7 @@ def train_model(alpha: float = 0.9, dim: int = 2, k: float = 2, n_hidden: int = 
             plt.show()
 
 
+    validate(model, vision, concepts)
     for epoch in range(n_epochs):
         for i, (img, (pos_target, neg_sample)) in enumerate(tqdm(train_dataloader)):
             uniq_concepts = pos_target.unique()
