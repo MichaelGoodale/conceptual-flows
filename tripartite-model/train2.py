@@ -161,13 +161,13 @@ def train_model(alpha: float = 0.9, dim: int = 2, k: float = 2, n_hidden: int = 
             _, log_probs = model.transform(features, concepts[pos_target], with_log_probs=True)
             pos_loss = (-log_probs).mean()
             neg_loss = -model(features.repeat_interleave(NEG_SAMPLING, 0), concepts[neg_sample.view(-1)], negative_example=True).mean()*NEG_SAMPLING
-            real_loss = pos_loss + neg_loss
+            real_loss = alpha*pos_loss + (1-alpha)*neg_loss
 
             # Sample from each distribution and pass to negative of different.
             batch = model.sample(concepts[neg_target.view(-1)], batch_size)
             neg_weights = concepts[uniq_concepts].repeat_interleave(NEG_SAMPLING, 0).unsqueeze(1).expand(-1, batch_size, -1)
             sample_loss = - model(batch, neg_weights, negative_example=True).mean()
-            loss = alpha*real_loss + (1-alpha)*sample_loss
+            loss = 0.9*real_loss + 0.1*sample_loss
 
             loss.backward()
             losses.append(loss)
