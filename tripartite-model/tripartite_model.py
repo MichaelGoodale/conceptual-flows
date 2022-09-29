@@ -74,12 +74,17 @@ class TripartiteModel(nn.Module):
 
         return e_position, log_abs_det_jacobian
 
-    def sample(self, W: Tensor, n: int = 128, with_ladj=False, negative_example = False):
+    def sample(self, W: Tensor, n: int = 128, with_ladj=False, negative_example = False, on_boundary=False):
         if W.ndim == 1:
             W = W.unsqueeze(0)
 
         n_concepts = W.shape[0]
-        samples = self.distribution.sample((n_concepts, n), negative_example=negative_example).to(W.device)
+        
+        if on_boundary:
+            samples = self.distribution.generate_boundary((n_concepts, n)).to(W.device)
+        else:
+            samples = self.distribution.sample((n_concepts, n), negative_example=negative_example).to(W.device)
+
         e_position, log_abs_det_jacobian = self.inverse_transform(samples, W.unsqueeze(1).expand(-1, n,-1))
         if with_ladj:
             return e_position, log_abs_det_jacobian
