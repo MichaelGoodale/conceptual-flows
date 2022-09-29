@@ -98,7 +98,6 @@ def train_model(alpha=0.9, dim=2, k=2, n_hidden=32, n_couplings=16,
 
     params = [concepts] + [x for x in vision.parameters()]
     optimizer = optim.AdamW(params, lr=lr)
-    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.1)
     losses = []
     real_losses = []
     sample_losses = []
@@ -170,7 +169,6 @@ def train_model(alpha=0.9, dim=2, k=2, n_hidden=32, n_couplings=16,
         losses = [] 
         real_losses = [] 
         sample_losses = [] 
-        scheduler.step()
 
 
 if __name__ == '__main__':
