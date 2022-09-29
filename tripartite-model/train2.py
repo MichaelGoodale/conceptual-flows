@@ -153,7 +153,7 @@ def train_model(alpha=0.9, dim=2, k=2, n_hidden=32, n_couplings=16,
             # Sample from each distribution and pass to negative of different.
             batch = model.sample(concepts[neg_targets.view(-1)], batch_size, on_boundary=True)
             neg_weights = concepts[uniq_concepts].repeat_interleave(NEG_SAMPLING, 0).unsqueeze(1).expand(-1, batch_size, -1)
-            sample_loss = F.relu(math.log(0.5) - model(batch, neg_weights, negative_example=True)).mean()
+            sample_loss = F.relu(math.log(0.9) - model(batch, neg_weights, negative_example=True)).mean()
             loss = alpha*real_loss + (1-alpha)*sample_loss
 
             loss.backward()
