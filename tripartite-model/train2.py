@@ -130,8 +130,8 @@ def train_model(alpha: float = 0.9, dim: int = 2, k: float = 2, n_hidden: int = 
                 neg_outputs = (model(features.repeat_interleave(NEG_SAMPLING, 0), concepts[neg_target.view(-1)], negative_example=True))
                 neg_correct += (neg_outputs > cutoff).sum().item()
                 neg_mean += torch.exp(neg_outputs).sum()
-            print(f'Positive examples: {pos_correct/n:.3f}\tNegative examples{neg_correct/(NEG_SAMPLING*n):.3f}')
-            print(f'Positive mean: {pos_mean/n:.3f}\tNegative mean{neg_mean/(NEG_SAMPLING*n):.3f}')
+            print(f'Positive examples: {pos_correct/(n*sample_batch_size):.3f}\tNegative examples{neg_correct/(NEG_SAMPLING*n*sample_batch_size):.3f}')
+            print(f'Positive mean: {pos_mean/(n*sample_batch_size):.3f}\tNegative mean{neg_mean/(NEG_SAMPLING*n*sample_batch_size):.3f}')
             boundary = model.distribution.generate_boundary(1000).to(device)
             for concept_idx, name in enumerate(CLASSES):
                 plt.scatter(*model.inverse_transform(boundary, concepts[concept_idx])[0].T.cpu().detach(), label=name)
