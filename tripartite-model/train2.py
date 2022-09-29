@@ -121,7 +121,7 @@ def train_model(alpha: float = 0.9, dim: int = 2, k: float = 2, n_hidden: int = 
 
                 features = model.sample(features, sample_batch_size).view(-1, dim)
                 pos_target = pos_target.repeat_interleave(sample_batch_size, 0)
-                neg_target = neg_target.repeat_interleave(target_batch_size, 0)
+                neg_target = neg_target.repeat_interleave(sample_batch_size, 0)
 
                 pos_outputs = model(features, concepts[pos_target])
                 pos_correct += (pos_outputs > cutoff).sum().item()
