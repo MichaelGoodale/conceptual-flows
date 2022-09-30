@@ -22,7 +22,7 @@ from tqdm import tqdm
 
 
 
-def train_model(alpha: float = 0.9, dim: int = 2, k: float = 2, n_hidden: int = 32, n_couplings: int = 16, 
+def train_model(alpha: float = 0.9, beta: float = 0.9, dim: int = 2, k: float = 2, n_hidden: int = 32, n_couplings: int = 16, 
                 radius: float = 1.0, frozen: bool = False, lr:float = 1e-3, batch_size: int = 128, n_epochs: int = 5,
                 clip: float = 1.0, c:float = 2/3., neg_sampling: int = 3, pdf_loss: bool = False, no_neg_sampling: bool = False,
                 sample_batch_size: int = 32):
@@ -167,7 +167,7 @@ def train_model(alpha: float = 0.9, dim: int = 2, k: float = 2, n_hidden: int = 
             batch = model.sample(concepts[neg_target.view(-1)], batch_size)
             neg_weights = concepts[uniq_concepts].repeat_interleave(NEG_SAMPLING, 0).unsqueeze(1).expand(-1, batch_size, -1)
             sample_loss = - model(batch, neg_weights, negative_example=True).mean()
-            loss = 0.9*real_loss + 0.1*sample_loss
+            loss = beta*real_loss + (1-beta)*sample_loss
 
             loss.backward()
             losses.append(loss)
