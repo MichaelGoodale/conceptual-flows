@@ -27,15 +27,6 @@ def train_model(alpha: float = 0.9, beta: float = 0.9, dim: int = 2, k: float = 
                 clip: float = 1.0, c:float = 2/3., neg_sampling: int = 3, pdf_loss: bool = False, no_neg_sampling: bool = False,
                 sample_batch_size: int = 32):
 
-    model = TripartiteModel(dim=dim,
-                            n_hidden=n_hidden,
-                            n_couplings=n_couplings,
-                            clip=clip, 
-                            radius=radius,
-                            k=k,
-                            c=c
-                            )
-
     data_transforms =  transforms.Compose([
             transforms.RandomResizedCrop(224),
             transforms.RandomHorizontalFlip(),
@@ -78,7 +69,27 @@ def train_model(alpha: float = 0.9, beta: float = 0.9, dim: int = 2, k: float = 
     else:
         device = 'cpu'
 
+    model = TripartiteModel(dim=dim,
+                            n_hidden=n_hidden,
+                            n_couplings=n_couplings,
+                            clip=clip, 
+                            radius=radius,
+                            k=k,
+                            c=c
+                            )
+
     model.to(device)
+
+    generated_model = TripartiteModel(dim=dim,
+                            n_hidden=8,
+                            n_couplings=2,
+                            clip=clip, 
+                            radius=radius,
+                            k=k,
+                            c=c
+                            )
+
+    generated_model.to(device)
 
     vision = resnet18(weights=ResNet18_Weights.DEFAULT)
     if frozen:
@@ -87,7 +98,7 @@ def train_model(alpha: float = 0.9, beta: float = 0.9, dim: int = 2, k: float = 
     num_ftrs = vision.fc.in_features
     vision.fc = nn.Sequential(nn.Linear(num_ftrs, num_ftrs),
                               nn.ReLU(),
-                              nn.Linear(num_ftrs, model.feature_size))
+                              nn.Linear(num_ftrs, generated_model.feature_size))
     vision.to(device)
 
     identity = model.couplings[0].generate_identity_feature().repeat(len(model.couplings))
@@ -119,7 +130,7 @@ def train_model(alpha: float = 0.9, beta: float = 0.9, dim: int = 2, k: float = 
                 optimizer.zero_grad()
                 features = vision(img)
 
-                features = model.sample(features, sample_batch_size).view(-1, dim)
+                features = generated_model.sample(features, sample_batch_size).view(-1, dim)
                 pos_target = pos_target.repeat_interleave(sample_batch_size, 0)
                 neg_target = neg_target.repeat_interleave(sample_batch_size, 0)
 
@@ -154,7 +165,7 @@ def train_model(alpha: float = 0.9, beta: float = 0.9, dim: int = 2, k: float = 
             optimizer.zero_grad()
             features = vision(img)
 
-            features = model.sample(features, sample_batch_size).view(-1, dim)
+            features = generated_model.sample(features, sample_batch_size).view(-1, dim)
             pos_target = pos_target.repeat_interleave(sample_batch_size, 0)
             neg_sample = neg_sample.repeat_interleave(sample_batch_size, 0)
 
