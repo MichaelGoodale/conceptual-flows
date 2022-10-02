@@ -146,7 +146,7 @@ def train_model(alpha: float = 0.9, dim: int = 2, k: float = 2, n_hidden: int = 
             boundary = model.distribution.generate_boundary(1000).to(device)
             for concept_idx, name in enumerate(CLASSES):
                 plt.scatter(*model.inverse_transform(boundary, concepts[concept_idx])[0].T.cpu().detach(), color=plt.cm.tab20(concept_idx), label=name)
-                plt.scatter(*model.sample(concepts[concept_idx], n=500)[0].T.cpu().detach(), alpha=0.15, color=plt.cm.tab20(concept_idx),)
+                plt.scatter(*model.sample(concepts[concept_idx], n=100)[0].T.cpu().detach(), alpha=0.15, color=plt.cm.tab20(concept_idx),)
             plt.legend()
             plt.show()
 
