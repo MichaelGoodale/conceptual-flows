@@ -171,8 +171,9 @@ def train_model(alpha: float = 0.9, beta: float = 0.9, dim: int = 2, k: float = 
 
             _, log_probs = model.transform(features, concepts[pos_target], with_log_probs=True)
             pos_loss = (-log_probs).mean()
+            pos_loss_class = model(features, concepts[pos_target]).mean()
             neg_loss = -model(features.repeat_interleave(NEG_SAMPLING, 0), concepts[neg_sample.view(-1)], negative_example=True).mean()*NEG_SAMPLING
-            real_loss = alpha*pos_loss + (1-alpha)*neg_loss
+            real_loss = alpha*pos_loss + (1-alpha)*(pos_loss_class+neg_loss)
 
             # Sample from each distribution and pass to negative of different.
             batch = model.sample(concepts[neg_target.view(-1)], batch_size)
