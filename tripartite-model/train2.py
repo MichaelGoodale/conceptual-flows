@@ -146,17 +146,16 @@ def train_model(alpha: float = 0.9, dim: int = 2, k: float = 2, n_hidden: int = 
             boundary = model.distribution.generate_boundary(1000).to(device)
             for concept_idx, name in enumerate(CLASSES):
                 plt.scatter(*model.inverse_transform(boundary, concepts[concept_idx])[0].T.cpu().detach(), label=name)
+                plt.scatter(*model.sample(concepts[concept_idx], n=500)[0].T.cpu().detach(), label=name, alpha=0.15)
             plt.legend()
             plt.show()
 
 
     validate(model, vision, concepts)
     for epoch in range(n_epochs):
-        for i, (img, (pos_target, neg_sample)) in enumerate(tqdm(train_dataloader)):
+        for i, (img, (pos_target, neg_target)) in enumerate(tqdm(train_dataloader)):
             uniq_concepts = pos_target.unique()
-            neg_target = torch.tensor(np.vstack([get_alternatives(x.item()) for x in uniq_concepts]))
 
-            neg_sample = neg_sample.to(device)
             neg_target = neg_target.to(device)
             img = img.to(device)
             pos_target = pos_target.to(device)
@@ -165,12 +164,12 @@ def train_model(alpha: float = 0.9, dim: int = 2, k: float = 2, n_hidden: int = 
 
             features = generated_model.sample(features, sample_batch_size).view(-1, dim)
             pos_target = pos_target.repeat_interleave(sample_batch_size, 0)
-            neg_sample = neg_sample.repeat_interleave(sample_batch_size, 0)
+            neg_target = neg_target.repeat_interleave(sample_batch_size, 0)
 
             _, log_probs = model.transform(features, concepts[pos_target], with_log_probs=True)
             pos_loss = (-log_probs).mean()
             pos_loss_class = -model(features, concepts[pos_target]).mean()
-            neg_loss = -model(features.repeat_interleave(NEG_SAMPLING, 0), concepts[neg_sample.view(-1)], negative_example=True).mean()*NEG_SAMPLING
+            neg_loss = -model(features.repeat_interleave(NEG_SAMPLING, 0), concepts[neg_target.view(-1)], negative_example=True).mean()*NEG_SAMPLING
             loss = alpha*pos_loss + (1-alpha)*(pos_loss_class+neg_loss)
 
             loss.backward()
