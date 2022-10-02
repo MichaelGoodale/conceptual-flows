@@ -111,7 +111,6 @@ def train_model(alpha: float = 0.9, dim: int = 2, k: float = 2, n_hidden: int = 
     params = [concepts] + [x for x in vision.parameters()]
     optimizer = optim.AdamW(params, lr=lr)
     losses = []
-    real_losses = []
 
     def validate(model, vision, concepts):
         with torch.no_grad():
@@ -176,17 +175,11 @@ def train_model(alpha: float = 0.9, dim: int = 2, k: float = 2, n_hidden: int = 
 
             loss.backward()
             losses.append(loss)
-            real_losses.append(real_loss)
             optimizer.step()
         print(f"Epoch {epoch+1}/{n_epochs}, step {i}")
         print(f"loss={sum([l.item() for l in losses])/len(losses)} ")
-        print(f"real_loss={sum([l.item() for l in real_losses])/len(real_losses)} ")
-        print(f"sample_loss={sum([l.item() for l in sample_losses])/len(sample_losses)} ")
         validate(model, vision, concepts)
         losses = [] 
-        real_losses = [] 
-        sample_losses = [] 
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser() 
