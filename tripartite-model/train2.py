@@ -22,8 +22,8 @@ from tqdm import tqdm
 
 
 
-def train_model(alpha: float = 0.9, beta: float = 0.9, dim: int = 2, k: float = 2, n_hidden: int = 32, n_couplings: int = 16, 
-                radius: float = 1.0, frozen: bool = False, lr:float = 1e-3, batch_size: int = 128, n_epochs: int = 5,
+def train_model(alpha: float = 0.9, dim: int = 2, k: float = 2, n_hidden: int = 32, n_couplings: int = 16, 
+                radius: float = 4.0, frozen: bool = False, lr:float = 1e-3, batch_size: int = 128, n_epochs: int = 5,
                 clip: float = 1.0, c:float = 2/3., neg_sampling: int = 3, pdf_loss: bool = False, no_neg_sampling: bool = False,
                 sample_batch_size: int = 32):
 
@@ -112,7 +112,6 @@ def train_model(alpha: float = 0.9, beta: float = 0.9, dim: int = 2, k: float = 
     optimizer = optim.AdamW(params, lr=lr)
     losses = []
     real_losses = []
-    sample_losses = []
 
     def validate(model, vision, concepts):
         with torch.no_grad():
@@ -173,18 +172,11 @@ def train_model(alpha: float = 0.9, beta: float = 0.9, dim: int = 2, k: float = 
             pos_loss = (-log_probs).mean()
             pos_loss_class = -model(features, concepts[pos_target]).mean()
             neg_loss = -model(features.repeat_interleave(NEG_SAMPLING, 0), concepts[neg_sample.view(-1)], negative_example=True).mean()*NEG_SAMPLING
-            real_loss = alpha*pos_loss + (1-alpha)*(pos_loss_class+neg_loss)
-
-            # Sample from each distribution and pass to negative of different.
-            batch = model.sample(concepts[neg_target.view(-1)], batch_size)
-            neg_weights = concepts[uniq_concepts].repeat_interleave(NEG_SAMPLING, 0).unsqueeze(1).expand(-1, batch_size, -1)
-            sample_loss = - model(batch, neg_weights, negative_example=True).mean()
-            loss = beta*real_loss + (1-beta)*sample_loss
+            loss = alpha*pos_loss + (1-alpha)*(pos_loss_class+neg_loss)
 
             loss.backward()
             losses.append(loss)
             real_losses.append(real_loss)
-            sample_losses.append(sample_loss)
             optimizer.step()
         print(f"Epoch {epoch+1}/{n_epochs}, step {i}")
         print(f"loss={sum([l.item() for l in losses])/len(losses)} ")
@@ -203,7 +195,7 @@ if __name__ == '__main__':
     parser.add_argument('--k', type=float, default=2)
     parser.add_argument('--n_hidden', type=int, default=32)
     parser.add_argument('--n_couplings', type=int, default=16)
-    parser.add_argument('--radius', type=float, default = 1.0)
+    parser.add_argument('--radius', type=float, default = 4.0)
     parser.add_argument('--frozen', action='store_true')
     parser.add_argument('--lr', type=float, default = 1e-3)
     parser.add_argument('--batch_size', type=int, default = 128)
