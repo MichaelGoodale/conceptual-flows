@@ -194,7 +194,7 @@ class ConceptDistribution():
     def boundary_norm(self):
         ''' Allows for discrete categorisation, it's where negative example becomes more likely'''
         s = 1 / (math.erf(self.k)*(math.erf(self.c*self.k)+math.erf(self.k-self.c*self.k)))
-        return (self.c ** 2 - math.log(s)/(self.k**2)) / (2*self.c)
+        return ((self.c ** 2 - math.log(s)/(self.k**2)) / (2*self.c))*self.radius
 
     def generate_boundary(self, n=100):
         ''' Generates n points lying on the boundary '''
