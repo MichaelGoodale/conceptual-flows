@@ -193,7 +193,6 @@ class ConceptDistribution():
         ''' Allows for discrete categorisation, it's where negative example becomes more likely'''
         return ((self.c**2 * self.k ** 2) + math.log(math.erf(self.c*self.k) + 1)) /(2*self.c*self.k**2)
 
-
     def generate_boundary(self, n=100):
         ''' Generates n points lying on the boundary '''
         if isinstance(n, int):
@@ -218,7 +217,7 @@ class ConceptDistribution():
         u = F.normalize(u, dim=-1)
         r = torch.rand(*n, 1)
         if negative_example:
-            r = torch.erfinv(r * math.erf(self.c*self.k) - math.erf(self.c*self.k) + x) + self.c*self.k
+            r = torch.erfinv(r * math.erf(self.c*self.k) - math.erf(self.c*self.k) + r) + self.c*self.k
             r = r / self.k
         else:
             r = torch.erfinv(r) / self.k
