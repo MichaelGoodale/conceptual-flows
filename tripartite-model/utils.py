@@ -218,7 +218,7 @@ class ConceptDistribution():
         u = F.normalize(u, dim=-1)
         r = torch.rand(*n, 1)
         if negative_example:
-            r = torch.erfinv(r * torch.erf(self.c*self.k) - torch.erf(self.c*self.k) + x) + self.c*self.k
+            r = torch.erfinv(r * math.erf(self.c*self.k) - math.erf(self.c*self.k) + x) + self.c*self.k
             r = r / self.k
         else:
             r = torch.erfinv(r) / self.k
