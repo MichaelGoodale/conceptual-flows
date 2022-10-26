@@ -51,9 +51,6 @@ class TripartiteModel(nn.Module):
             predicate_position, ladj = coupling.forward(predicate_position, weight)
             log_abs_det_jacobian += ladj
 
-        #predicate_position, ladj = self.homeomorphism.to_ball(predicate_position)
-        #log_abs_det_jacobian += ladj
-
         if with_log_probs and not with_both_prob:
             log_probs = self.distribution.log_prob(predicate_position, negative_example=negative_example)
             return predicate_position, log_probs - log_abs_det_jacobian
@@ -64,9 +61,8 @@ class TripartiteModel(nn.Module):
         return predicate_position
 
     def inverse_transform(self, x: Tensor, W: Tensor):
-        predicate_position = x 
+        e_position = x 
         log_abs_det_jacobian = torch.zeros(*x.shape[:-1], device=x.device)
-        #e_position, log_abs_det_jacobian = self.homeomorphism.from_ball(x)
 
         for coupling, weight in zip(reversed(self.couplings), reversed(self.split_weights(W))):
             e_position, ladj = coupling.backward(e_position, weight)
