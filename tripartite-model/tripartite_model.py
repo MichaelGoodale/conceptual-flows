@@ -14,7 +14,7 @@ class TripartiteModel(nn.Module):
     # For all functions with W; to have all from a single W, just make sure the shape is (1, feature_size)
     # and broadcasting should take care of it. 
 
-    def __init__(self, dim:int =32, n_couplings:int =4, n_hidden=32, clip=1.0,  k=5, c=2/3.):
+    def __init__(self, dim:int =32, n_couplings:int =4, n_hidden=32, clip=1.0,  k=5, k_neg=5, c=2/3.):
         '''
         Args:
             dim: Dimensionality of e-space
@@ -22,7 +22,7 @@ class TripartiteModel(nn.Module):
             buffer: Buffer for sigmoid function (where sigmoid(x)=0.5)
         '''
         super().__init__()
-        self.distribution = ConceptDistribution(dim, k=k, c=c)
+        self.distribution = ConceptDistribution(dim, k=k, k_neg=k_neg, c=c)
         self.couplings = nn.ModuleList()
         mask = torch.ones(dim)
         mask[::2] = 0

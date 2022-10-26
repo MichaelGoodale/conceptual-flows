@@ -164,7 +164,7 @@ class MaskedCouplingFlow(nn.Module):
 
 class ConceptDistribution():
 
-    def __init__(self, dim=2, k=5, c = 2/3., eps=1e-9):
+    def __init__(self, dim=2, k=5, k_neg=5, c = 2/3., eps=1e-9):
         '''
             Args:
                 dim (int): number of dimensions
@@ -174,6 +174,7 @@ class ConceptDistribution():
         self.dim = dim
         self.c = c
         self.k = k
+        self.k_neg = k_neg
         self.eps = eps
 
     def log_prob(self, x: Tensor, negative_example=False):
@@ -183,15 +184,26 @@ class ConceptDistribution():
 
         r = torch.linalg.vector_norm(x, dim=-1) 
         if negative_example: # These are the derivatives of their CDF, (i.e., their PDF)
-            scale = 2*self.k / (math.sqrt(math.pi) * (1 + math.erf(self.c*self.k)))
-            prob = scale * torch.exp(- self.k ** 2 * (r - self.c) ** 2) 
+            scale = 2*self.k_neg / (math.sqrt(math.pi) * (1 + math.erf(self.c*self.k_neg)))
+            prob = scale * torch.exp(- self.k_neg ** 2 * (r - self.c) ** 2) 
         else:
             prob = 2*self.k*torch.exp(-self.k**2 * r ** 2) / (math.sqrt(math.pi))
         return torch.log(prob+self.eps)
 
     def boundary_norm(self):
         ''' Allows for discrete categorisation, it's where negative example becomes more likely'''
-        return ((self.c**2 * self.k ** 2) + math.log(math.erf(self.c*self.k) + 1)) /(2*self.c*self.k**2)
+        k = self.k
+        q = self.k_neg
+        c = self.c
+        w = math.log(q / (k*(1+math.erf(c*q))))
+
+        if abs(q) == abs(k):
+            return c/2 - w/(2*c*q**2)
+
+        val = c**2 * k**2 * q**2 + w*(q**2 - k **2)
+        val = math.sqrt(val) - c*q**2
+        return val / (k**2 - q ** 2)
+
 
     def generate_boundary(self, n=100):
         ''' Generates n points lying on the boundary '''
@@ -203,8 +215,8 @@ class ConceptDistribution():
     def log_cdf(self, x: Tensor, negative_example=False):
         r = torch.linalg.vector_norm(x, dim=-1) 
         if negative_example: # These are the derivatives of their CDF, (i.e., their PDF)
-            scale = math.erf(self.c*self.k) + 1
-            prob = (torch.erf(self.k*(r-self.c)) + math.erf(self.c*self.k)) / scale 
+            scale = math.erf(self.c*self.k_neg) + 1
+            prob = (torch.erf(self.k_neg*(r-self.c)) + math.erf(self.c*self.k_neg)) / scale 
         else:
             prob = 1-torch.erf(self.k*r)  #1 - is just to make the CDF go from right to left rather than left to right
         return torch.log(prob+self.eps)
@@ -217,8 +229,8 @@ class ConceptDistribution():
         u = F.normalize(u, dim=-1)
         r = torch.rand(*n, 1)
         if negative_example:
-            r = torch.erfinv(r * math.erf(self.c*self.k) - math.erf(self.c*self.k) + r) + self.c*self.k
-            r = r / self.k
+            r = torch.erfinv(r * math.erf(self.c*self.k_neg) - math.erf(self.c*self.k_neg) + r) + self.c*self.k_neg
+            r = r / self.k_neg
         else:
             r = torch.erfinv(r) / self.k
         return r*u

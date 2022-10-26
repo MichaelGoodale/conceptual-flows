@@ -22,7 +22,7 @@ from tqdm import tqdm
 
 
 
-def train_model(alpha: float = 0.9, dim: int = 2, k: float = 2, n_hidden: int = 32, n_couplings: int = 16, 
+def train_model(alpha: float = 0.9, dim: int = 2, k: float = 2, k_neg: float = 2, n_hidden: int = 32, n_couplings: int = 16, 
                 frozen: bool = False, lr:float = 1e-3, batch_size: int = 128, n_epochs: int = 5,
                 clip: float = 1.0, c:float = 2/3., neg_sampling: int = 3, pdf_loss: bool = False, no_neg_sampling: bool = False, scale:float = 0.15,
                 sample_batch_size: int = 32):
@@ -74,6 +74,7 @@ def train_model(alpha: float = 0.9, dim: int = 2, k: float = 2, n_hidden: int = 
                             n_couplings=n_couplings,
                             clip=clip, 
                             k=k,
+                            k_neg=k_neg,
                             c=c
                             )
 
@@ -183,6 +184,7 @@ if __name__ == '__main__':
     parser.add_argument('--alpha', type=float, default=0.9)
     parser.add_argument('--dim', type=int, default=2)
     parser.add_argument('--k', type=float, default=2)
+    parser.add_argument('--k_neg', type=float, default=2)
     parser.add_argument('--n_hidden', type=int, default=32)
     parser.add_argument('--n_couplings', type=int, default=16)
     parser.add_argument('--frozen', action='store_true')
@@ -197,7 +199,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    train_model(alpha=args.alpha, dim=args.dim, k=args.k, n_hidden=args.n_hidden,
+    train_model(alpha=args.alpha, dim=args.dim, k=args.k, n_hidden=args.n_hidden, k_neg = args.k_neg,
                 n_couplings=args.n_couplings, frozen=args.frozen,
                 lr=args.lr, batch_size=args.batch_size, n_epochs=args.n_epochs, scale=args.scale,
                 clip=args.clip, neg_sampling=args.neg_sampling, c=args.center)
