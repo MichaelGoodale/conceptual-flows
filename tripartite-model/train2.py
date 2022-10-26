@@ -24,7 +24,7 @@ from tqdm import tqdm
 
 def train_model(alpha: float = 0.9, dim: int = 2, k: float = 2, n_hidden: int = 32, n_couplings: int = 16, 
                 frozen: bool = False, lr:float = 1e-3, batch_size: int = 128, n_epochs: int = 5,
-                clip: float = 1.0, c:float = 2/3., neg_sampling: int = 3, pdf_loss: bool = False, no_neg_sampling: bool = False,
+                clip: float = 1.0, c:float = 2/3., neg_sampling: int = 3, pdf_loss: bool = False, no_neg_sampling: bool = False, scale:float = 0.15,
                 sample_batch_size: int = 32):
 
     data_transforms =  transforms.Compose([
@@ -101,7 +101,7 @@ def train_model(alpha: float = 0.9, dim: int = 2, k: float = 2, n_hidden: int = 
 
     identity = model.couplings[0].generate_identity_feature().repeat(len(model.couplings))
     concepts = torch.zeros((N_CLASSES, model.feature_size))
-    concepts = torch.normal(concepts) * 0.15
+    concepts = torch.normal(concepts) * scale
     concepts = concepts.to(device)
 
     concepts.requires_grad=True
@@ -192,11 +192,12 @@ if __name__ == '__main__':
     parser.add_argument('--clip', type=float, default = 1.0)
     parser.add_argument('--neg_sampling', type=int, default = 3)
     parser.add_argument('--center', type=float, default = 2/3.)
+    parser.add_argument('--scale', type=float, default = 0.15)
     parser.add_argument('--sample_batch_size', type=int, default = 32)
 
     args = parser.parse_args()
 
     train_model(alpha=args.alpha, dim=args.dim, k=args.k, n_hidden=args.n_hidden,
                 n_couplings=args.n_couplings, frozen=args.frozen,
-                lr=args.lr, batch_size=args.batch_size, n_epochs=args.n_epochs,
+                lr=args.lr, batch_size=args.batch_size, n_epochs=args.n_epochs, scale=args.scale
                 clip=args.clip, neg_sampling=args.neg_sampling, c=args.center)
