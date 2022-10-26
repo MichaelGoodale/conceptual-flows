@@ -40,13 +40,7 @@ class TripartiteModel(nn.Module):
     def split_weights(self, W):
         if W.shape[-1] != self.feature_size:
             raise ValueError(f'Weight vector W should have size{self.feature_size} not {W.shape}')
-        idx = 0
-        weights = []
-        for coupling in self.couplings:
-            weights.append(W[..., idx:idx + coupling.feature_size])
-            idx += coupling.feature_size
-        return weights
-        #return torch.split(W, self.feature_size // len(self.couplings), dim=-1)
+        return torch.split(W, [c.feature_size for c in self.couplings], dim=-1)
 
     def transform(self, x: Tensor, W: Tensor, with_log_probs=False, negative_example=False, with_both_prob=False):
         '''
