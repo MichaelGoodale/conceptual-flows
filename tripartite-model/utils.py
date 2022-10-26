@@ -27,6 +27,32 @@ class BallHomeomorphism():
         ladj = -torch.log(torch.abs(ladj)+self.eps).squeeze(dim=-1)
         return x / (self.radius - norm), ladj
 
+class TranslateFlow(nn.Module):
+    def __init__(self, dim):
+        super().__init__()
+        self.dim = dim
+
+    @property
+    def feature_size(self) -> int:
+        '''Determine how big a feature vector should be to represent this coupling'''
+        return self.dim
+
+    def forward(self, x, W):
+        if W.shape[-1] != self.feature_size:
+            raise ValueError(f'Weight vector W should have size{self.feature_size} not {W.shape}')
+        if W.dim() == 1:
+            W = W.unsqueeze(0) 
+
+        return x+W, torch.zeros(*x.shape[:-1], device=W.device)
+
+    def backward(self, x, W):
+        if W.shape[-1] != self.feature_size:
+            raise ValueError(f'Weight vector W should have size{self.feature_size} not {W.shape}')
+        if W.dim() == 1:
+            W = W.unsqueeze(0) 
+
+        return x-W, torch.zeros(*x.shape[:-1], device=W.device)
+
 class MaskedCouplingFlow(nn.Module):
     def __init__(self, dim, mask=None, n_hidden=64, n_layers=2, activation=F.selu, clip=1.0, eps=1e-9):
         super().__init__()

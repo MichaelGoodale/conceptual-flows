@@ -24,7 +24,7 @@ from tqdm import tqdm
 
 def train_model(alpha: float = 0.9, dim: int = 2, k: float = 2, k_neg: float = 2, n_hidden: int = 32, n_couplings: int = 16, 
                 frozen: bool = False, lr:float = 1e-3, batch_size: int = 128, n_epochs: int = 5,
-                clip: float = 1.0, c:float = 2/3., neg_sampling: int = 3, pdf_loss: bool = False, no_neg_sampling: bool = False, scale:float = 0.15,
+                clip: float = 1.0, c:float = 2/3., neg_sampling: int = 3, pdf_loss: bool = False, no_neg_sampling: bool = False, scale:float = 3.,
                 sample_batch_size: int = 32):
 
     data_transforms =  transforms.Compose([
@@ -100,9 +100,9 @@ def train_model(alpha: float = 0.9, dim: int = 2, k: float = 2, k_neg: float = 2
                               nn.Linear(num_ftrs, generated_model.feature_size))
     vision.to(device)
 
-    identity = model.couplings[0].generate_identity_feature().repeat(len(model.couplings))
     concepts = torch.zeros((N_CLASSES, model.feature_size))
-    concepts = torch.normal(concepts) * scale
+    torch.nn.init.xavier_uniform_(concepts)
+    concepts[:, :dim] = torch.rand((N_CLASSES, dim)) * scale
     concepts = concepts.to(device)
 
     concepts.requires_grad=True
@@ -113,6 +113,14 @@ def train_model(alpha: float = 0.9, dim: int = 2, k: float = 2, k_neg: float = 2
 
     def validate(model, vision, concepts):
         with torch.no_grad():
+            boundary = model.distribution.generate_boundary(1000).to(device)
+            for concept_idx, name in enumerate(CLASSES):
+                plt.scatter(*model.inverse_transform(boundary, concepts[concept_idx])[0].T.cpu().detach(), color=plt.cm.tab20(concept_idx), label=name)
+                plt.scatter(*model.sample(concepts[concept_idx], n=100)[0].T.cpu().detach(), alpha=0.15, color=plt.cm.tab20(concept_idx),)
+            plt.legend()
+            plt.show()
+
+
             n = 0
             pos_correct = 0
             neg_correct = 0
@@ -142,12 +150,6 @@ def train_model(alpha: float = 0.9, dim: int = 2, k: float = 2, k_neg: float = 2
                 neg_mean += neg_outputs.sum()
             print(f'Positive examples: {pos_correct/(n):.3f}\tNegative examples{neg_correct/(NEG_SAMPLING*n):.3f}')
             print(f'Positive mean: {pos_mean/(n):.3f}\tNegative mean{neg_mean/(NEG_SAMPLING*n):.3f}')
-            boundary = model.distribution.generate_boundary(1000).to(device)
-            for concept_idx, name in enumerate(CLASSES):
-                plt.scatter(*model.inverse_transform(boundary, concepts[concept_idx])[0].T.cpu().detach(), color=plt.cm.tab20(concept_idx), label=name)
-                plt.scatter(*model.sample(concepts[concept_idx], n=100)[0].T.cpu().detach(), alpha=0.15, color=plt.cm.tab20(concept_idx),)
-            plt.legend()
-            plt.show()
 
 
     validate(model, vision, concepts)
@@ -194,7 +196,7 @@ if __name__ == '__main__':
     parser.add_argument('--clip', type=float, default = 1.0)
     parser.add_argument('--neg_sampling', type=int, default = 3)
     parser.add_argument('--center', type=float, default = 2/3.)
-    parser.add_argument('--scale', type=float, default = 0.15)
+    parser.add_argument('--scale', type=float, default = 3.0)
     parser.add_argument('--sample_batch_size', type=int, default = 32)
 
     args = parser.parse_args()

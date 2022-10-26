@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from torch.distributions import transforms 
 from torch.distributions.multivariate_normal import MultivariateNormal
 
-from utils import ConceptDistribution, BallHomeomorphism, MaskedCouplingFlow
+from utils import ConceptDistribution, BallHomeomorphism, MaskedCouplingFlow, TranslateFlow
 
 class TripartiteModel(nn.Module):
 
@@ -23,7 +23,10 @@ class TripartiteModel(nn.Module):
         '''
         super().__init__()
         self.distribution = ConceptDistribution(dim, k=k, k_neg=k_neg, c=c)
-        self.couplings = nn.ModuleList()
+        self.couplings = nn.ModuleList(
+                [TranslateFlow(dim)]
+                )
+        self.dim = dim
         mask = torch.ones(dim)
         mask[::2] = 0
         for i in range(n_couplings):
@@ -37,7 +40,13 @@ class TripartiteModel(nn.Module):
     def split_weights(self, W):
         if W.shape[-1] != self.feature_size:
             raise ValueError(f'Weight vector W should have size{self.feature_size} not {W.shape}')
-        return torch.split(W, self.feature_size // len(self.couplings), dim=-1)
+        idx = 0
+        weights = []
+        for coupling in self.couplings:
+            weights.append(W[..., idx:idx + coupling.feature_size])
+            idx += coupling.feature_size
+        return weights
+        #return torch.split(W, self.feature_size // len(self.couplings), dim=-1)
 
     def transform(self, x: Tensor, W: Tensor, with_log_probs=False, negative_example=False, with_both_prob=False):
         '''
