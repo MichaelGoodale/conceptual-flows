@@ -199,5 +199,5 @@ if __name__ == '__main__':
 
     train_model(alpha=args.alpha, dim=args.dim, k=args.k, n_hidden=args.n_hidden,
                 n_couplings=args.n_couplings, frozen=args.frozen,
-                lr=args.lr, batch_size=args.batch_size, n_epochs=args.n_epochs, scale=args.scale
+                lr=args.lr, batch_size=args.batch_size, n_epochs=args.n_epochs, scale=args.scale,
                 clip=args.clip, neg_sampling=args.neg_sampling, c=args.center)
