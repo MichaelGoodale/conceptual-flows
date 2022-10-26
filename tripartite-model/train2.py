@@ -23,7 +23,7 @@ from tqdm import tqdm
 
 
 def train_model(alpha: float = 0.9, dim: int = 2, k: float = 2, n_hidden: int = 32, n_couplings: int = 16, 
-                radius: float = 4.0, frozen: bool = False, lr:float = 1e-3, batch_size: int = 128, n_epochs: int = 5,
+                frozen: bool = False, lr:float = 1e-3, batch_size: int = 128, n_epochs: int = 5,
                 clip: float = 1.0, c:float = 2/3., neg_sampling: int = 3, pdf_loss: bool = False, no_neg_sampling: bool = False,
                 sample_batch_size: int = 32):
 
@@ -73,7 +73,6 @@ def train_model(alpha: float = 0.9, dim: int = 2, k: float = 2, n_hidden: int = 
                             n_hidden=n_hidden,
                             n_couplings=n_couplings,
                             clip=clip, 
-                            radius=radius,
                             k=k,
                             c=c
                             )
@@ -84,7 +83,6 @@ def train_model(alpha: float = 0.9, dim: int = 2, k: float = 2, n_hidden: int = 
                             n_hidden=8,
                             n_couplings=2,
                             clip=clip, 
-                            radius=radius,
                             k=k,
                             c=c
                             )
@@ -187,7 +185,6 @@ if __name__ == '__main__':
     parser.add_argument('--k', type=float, default=2)
     parser.add_argument('--n_hidden', type=int, default=32)
     parser.add_argument('--n_couplings', type=int, default=16)
-    parser.add_argument('--radius', type=float, default = 4.0)
     parser.add_argument('--frozen', action='store_true')
     parser.add_argument('--lr', type=float, default = 1e-3)
     parser.add_argument('--batch_size', type=int, default = 128)
@@ -200,6 +197,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     train_model(alpha=args.alpha, dim=args.dim, k=args.k, n_hidden=args.n_hidden,
-                n_couplings=args.n_couplings, radius=args.radius, frozen=args.frozen,
+                n_couplings=args.n_couplings, frozen=args.frozen,
                 lr=args.lr, batch_size=args.batch_size, n_epochs=args.n_epochs,
                 clip=args.clip, neg_sampling=args.neg_sampling, c=args.center)
