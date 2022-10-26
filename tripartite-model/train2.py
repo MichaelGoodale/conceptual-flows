@@ -101,7 +101,7 @@ def train_model(alpha: float = 0.9, dim: int = 2, k: float = 2, n_hidden: int = 
 
     identity = model.couplings[0].generate_identity_feature().repeat(len(model.couplings))
     concepts = torch.zeros((N_CLASSES, model.feature_size))
-    torch.nn.init.xavier_uniform_(concepts, gain=torch.nn.init.calculate_gain('selu'))
+    concepts = torch.normal(concepts) * 0.15
     concepts = concepts.to(device)
 
     concepts.requires_grad=True
