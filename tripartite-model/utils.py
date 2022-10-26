@@ -164,16 +164,14 @@ class MaskedCouplingFlow(nn.Module):
 
 class ConceptDistribution():
 
-    def __init__(self, dim=2, k=5, radius=1.0, c = 2/3., eps=1e-9):
+    def __init__(self, dim=2, k=5, c = 2/3., eps=1e-9):
         '''
             Args:
                 dim (int): number of dimensions
                 k (float): scaling factor for how aggressive the falloff is. It should be fairly aggressive to avoid points near the edge of the unit ball. 
-                radius (float): radius of the ball from which samples are drawn.
                 eps (float): Epsilon value
         '''
         self.dim = dim
-        self.radius = radius
         self.c = c
         self.k = k
         self.eps = eps
@@ -183,18 +181,18 @@ class ConceptDistribution():
         #Luckily, that's uniform so while this technically isn't the PDF, it's proportionate to the PDF
         #Alternatively, it is the PDF if we view it as a function of ||x|| rather than x.
 
-        r = torch.linalg.vector_norm(x, dim=-1) / self.radius
+        r = torch.linalg.vector_norm(x, dim=-1) 
         if negative_example: # These are the derivatives of their CDF, (i.e., their PDF)
-            scale = 2*self.k / (math.sqrt(math.pi) * (math.erf(self.c*self.k) + math.erf(self.k - self.c*self.k)))
+            scale = 2*self.k / (math.sqrt(math.pi) * (1 + math.erf(self.c*self.k)))
             prob = scale * torch.exp(- self.k ** 2 * (r - self.c) ** 2) 
         else:
-            prob = 2*self.k*torch.exp(-self.k**2 * r ** 2) / (math.sqrt(math.pi) * math.erf(self.k))
+            prob = 2*self.k*torch.exp(-self.k**2 * r ** 2) / (math.sqrt(math.pi))
         return torch.log(prob+self.eps)
 
     def boundary_norm(self):
         ''' Allows for discrete categorisation, it's where negative example becomes more likely'''
-        s = 1 / (math.erf(self.k)*(math.erf(self.c*self.k)+math.erf(self.k-self.c*self.k)))
-        return ((self.c ** 2 - math.log(s)/(self.k**2)) / (2*self.c))*self.radius
+        return ((self.c**2 * self.k ** 2) + math.log(math.erf(self.c*self.k) + 1)) /(2*self.c*self.k**2)
+
 
     def generate_boundary(self, n=100):
         ''' Generates n points lying on the boundary '''
@@ -204,12 +202,12 @@ class ConceptDistribution():
         return self.boundary_norm() * F.normalize(u, dim=-1)
 
     def log_cdf(self, x: Tensor, negative_example=False):
-        r = torch.linalg.vector_norm(x, dim=-1) / self.radius
+        r = torch.linalg.vector_norm(x, dim=-1) 
         if negative_example: # These are the derivatives of their CDF, (i.e., their PDF)
-            scale = math.erf(self.c*self.k) + math.erf(self.k - self.c*self.k)
+            scale = math.erf(self.c*self.k) + 1
             prob = (torch.erf(self.k*(r-self.c)) + math.erf(self.c*self.k)) / scale 
         else:
-            prob = 1-torch.erf(self.k*r) / math.erf(self.k) #1 - is just to make the CDF go from right to left rather than left to right
+            prob = 1-torch.erf(self.k*r)  #1 - is just to make the CDF go from right to left rather than left to right
         return torch.log(prob+self.eps)
 
     def sample(self, n: int, negative_example=False):
@@ -220,8 +218,8 @@ class ConceptDistribution():
         u = F.normalize(u, dim=-1)
         r = torch.rand(*n, 1)
         if negative_example:
-            r = r * (math.erf(self.c*self.k) + math.erf(self.k-self.k*self.c)) - math.erf(self.c*self.k)
-            r = (torch.erfinv(r) + self.c*self.k) / self.k
+            r = torch.erfinv(r * torch.erf(self.c*self.k) - torch.erf(self.c*self.k) + x) + self.c*self.k
+            r = r / self.k
         else:
-            r = torch.erfinv(math.erf(self.k) * r) / self.k
-        return self.radius*r*u
+            r = torch.erfinv(r) / self.k
+        return r*u
